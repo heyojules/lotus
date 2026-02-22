@@ -1,0 +1,105 @@
+package tcpserver
+
+import (
+	"bufio"
+	"context"
+	"net"
+	"sync"
+)
+
+const (
+	// lineChannelSize is the buffer size for the incoming log line channel.
+	lineChannelSize = 100_000
+)
+
+// Server listens for NDJSON log lines over TCP (e.g., from pino-socket).
+type Server struct {
+	listener net.Listener
+	addr     string
+	lineChan chan string
+	ctx      context.Context
+	cancel   context.CancelFunc
+	wg       sync.WaitGroup
+}
+
+// NewServer creates a new TCP server. Default addr is "0.0.0.0:4000".
+func NewServer(addr string) *Server {
+	if addr == "" {
+		addr = "0.0.0.0:4000"
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	return &Server{
+		addr:     addr,
+		lineChan: make(chan string, lineChannelSize),
+		ctx:      ctx,
+		cancel:   cancel,
+	}
+}
+
+// Start begins accepting TCP connections.
+func (s *Server) Start() error {
+	listener, err := net.Listen("tcp", s.addr)
+	if err != nil {
+		return err
+	}
+	s.listener = listener
+
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				select {
+				case <-s.ctx.Done():
+					return
+				default:
+					continue
+				}
+			}
+			s.wg.Add(1)
+			go s.handleConnection(conn)
+		}
+	}()
+
+	return nil
+}
+
+func (s *Server) handleConnection(conn net.Conn) {
+	defer s.wg.Done()
+	defer conn.Close()
+
+	scanner := bufio.NewScanner(conn)
+	// Set large buffer (1MB) to handle long JSON lines
+	const maxScanTokenSize = 1024 * 1024
+	buf := make([]byte, maxScanTokenSize)
+	scanner.Buffer(buf, maxScanTokenSize)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" {
+			continue
+		}
+		select {
+		case s.lineChan <- line:
+		case <-s.ctx.Done():
+			return
+		}
+	}
+}
+
+// Stop gracefully shuts down the TCP server.
+func (s *Server) Stop() error {
+	s.cancel()
+	if s.listener != nil {
+		s.listener.Close()
+	}
+	s.wg.Wait()
+	close(s.lineChan)
+	return nil
+}
+
+// Lines returns the channel of received log lines.
+func (s *Server) Lines() <-chan string {
+	return s.lineChan
+}

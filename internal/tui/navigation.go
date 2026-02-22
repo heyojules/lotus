@@ -1,0 +1,426 @@
+package tui
+
+import (
+	"fmt"
+
+	tea "github.com/charmbracelet/bubbletea"
+)
+
+// handleKeyPress dispatches key events: modal stack first, then inline
+// handlers (filter/search), then global dashboard shortcuts.
+func (m *DashboardModel) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if msg.String() == "ctrl+c" {
+		return m, tea.Quit
+	}
+
+	// Modal on stack gets the event first.
+	if modal := m.TopModal(); modal != nil {
+		pop, cmd := modal.Update(msg)
+		if pop {
+			m.PopModal()
+		}
+		return m, cmd
+	}
+
+	// Inline handlers (filter/search input).
+	for _, entry := range m.inlineHandlers {
+		if entry.isActive(m) {
+			handled, cmd := entry.handler.HandleKey(m, msg)
+			if handled {
+				return m, cmd
+			}
+			break
+		}
+	}
+
+	return m.handleGlobalKeys(msg)
+}
+
+// handleGlobalKeys handles dashboard-level shortcuts.
+// Only reached when no modal is on the stack and no inline handler is active.
+func (m *DashboardModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "q":
+		return m, tea.Quit
+
+	case "escape", "esc":
+		// Clear applied filter/search even when not in input mode
+		if m.filterRegex != nil || m.filterInput.Value() != "" || m.searchTerm != "" || m.searchInput.Value() != "" {
+			m.filterActive = false
+			m.searchActive = false
+			m.filterInput.Blur()
+			m.searchInput.Blur()
+			m.filterInput.SetValue("")
+			m.searchInput.SetValue("")
+			m.filterRegex = nil
+			m.searchTerm = ""
+			if m.activeSection == SectionFilter {
+				m.activeSection = SectionCharts
+				m.activePanelIdx = 0
+			}
+			return m, nil
+		}
+
+	case "?", "h":
+		m.PushModal(NewHelpModal(m))
+		return m, nil
+
+	case "/":
+		if m.filterRegex != nil || m.filterInput.Value() != "" {
+			m.activeSection = SectionFilter
+			m.filterActive = true
+			m.filterInput.Focus()
+		} else {
+			m.activeSection = SectionFilter
+			m.filterActive = true
+			m.filterInput.SetValue("")
+			m.filterRegex = nil
+			m.filterInput.Focus()
+		}
+		return m, nil
+
+	case "s":
+		if m.searchTerm != "" || m.searchInput.Value() != "" {
+			m.activeSection = SectionFilter
+			m.searchActive = true
+			m.searchInput.Focus()
+		} else {
+			m.activeSection = SectionFilter
+			m.searchActive = true
+			m.searchInput.SetValue("")
+			m.searchTerm = ""
+			m.searchInput.Focus()
+		}
+		return m, nil
+
+	case "r":
+		m.drain3LastProcessed = 0
+		return m, func() tea.Msg { return ManualResetMsg{} }
+
+	case "a":
+		m.sidebarVisible = !m.sidebarVisible
+		if m.sidebarVisible && m.activeSection != SectionSidebar {
+			if m.store != nil {
+				if apps, err := m.store.ListApps(); err == nil {
+					m.appList = apps
+				}
+			}
+		}
+		return m, nil
+
+	case "c":
+		m.showColumns = !m.showColumns
+		return m, nil
+
+	case "T":
+		m.useLogTime = !m.useLogTime
+		return m, nil
+
+	case "i":
+		if m.activeSection == SectionLogs {
+			if m.selectedLogIndex >= 0 && m.selectedLogIndex < len(m.logEntries) {
+				entry := m.logEntries[m.selectedLogIndex]
+				m.PushModal(NewDetailModal(m, &entry))
+			}
+		} else {
+			m.PushModal(NewStatsModal(m))
+		}
+		return m, nil
+
+	case "f":
+		if len(m.logEntries) > 0 {
+			m.selectedLogIndex = len(m.logEntries) - 1
+		} else {
+			m.selectedLogIndex = 0
+		}
+		m.PushModal(NewLogViewerModal(m))
+		return m, nil
+
+	case "ctrl+f":
+		m.PushModal(NewSeverityFilterModal(m))
+		return m, nil
+
+	case " ":
+		m.viewPaused = !m.viewPaused
+		return m, nil
+
+	case "u":
+		m.currentIntervalIdx = (m.currentIntervalIdx + 1) % len(m.availableIntervals)
+		newInterval := m.availableIntervals[m.currentIntervalIdx]
+		m.updateInterval = newInterval
+		intervalStr := m.formatDuration(newInterval)
+		content := fmt.Sprintf("Update Interval Changed\n\nNew interval: %s\n\nPress 'u' for next, 'U' for previous interval.\nThis controls how often the dashboard refreshes.", intervalStr)
+		m.PushModal(NewDetailModalWithContent(m, content))
+		return m, func() tea.Msg { return UpdateIntervalMsg(newInterval) }
+
+	case "U":
+		m.currentIntervalIdx = (m.currentIntervalIdx - 1 + len(m.availableIntervals)) % len(m.availableIntervals)
+		newInterval := m.availableIntervals[m.currentIntervalIdx]
+		m.updateInterval = newInterval
+		intervalStr := m.formatDuration(newInterval)
+		content := fmt.Sprintf("Update Interval Changed\n\nNew interval: %s\n\nPress 'u' for next, 'U' for previous interval.\nThis controls how often the dashboard refreshes.", intervalStr)
+		m.PushModal(NewDetailModalWithContent(m, content))
+		return m, func() tea.Msg { return UpdateIntervalMsg(newInterval) }
+	}
+
+	// Sidebar navigation
+	if m.activeSection == SectionSidebar && m.sidebarVisible {
+		maxIdx := len(m.appList)
+		switch msg.String() {
+		case "up", "k":
+			if m.appListIdx > 0 {
+				m.appListIdx--
+			}
+			return m, nil
+		case "down", "j":
+			if m.appListIdx < maxIdx {
+				m.appListIdx++
+			}
+			return m, nil
+		case "enter":
+			if m.appListIdx == 0 {
+				m.selectedApp = ""
+			} else if m.appListIdx-1 < len(m.appList) {
+				m.selectedApp = m.appList[m.appListIdx-1]
+			}
+			return m, nil
+		}
+	}
+
+	// Navigation shortcuts
+	switch msg.String() {
+	case "tab":
+		m.nextSection()
+		return m, nil
+
+	case "shift+tab":
+		m.prevSection()
+		return m, nil
+
+	case "up", "k":
+		if m.activeSection == SectionLogs && len(m.logEntries) <= 0 {
+			if m.instructionsScrollOffset > 0 {
+				m.instructionsScrollOffset--
+			}
+			return m, nil
+		}
+		m.moveSelection(-1)
+		return m, nil
+
+	case "down", "j":
+		if m.activeSection == SectionLogs && len(m.logEntries) <= 0 {
+			m.instructionsScrollOffset++
+			return m, nil
+		}
+		m.moveSelection(1)
+		return m, nil
+
+	case "home":
+		if m.activeSection == SectionLogs {
+			if len(m.logEntries) <= 0 {
+				m.instructionsScrollOffset = 0
+				return m, nil
+			}
+			m.selectedLogIndex = 0
+			m.logAutoScroll = false
+			return m, nil
+		}
+
+	case "end":
+		if m.activeSection == SectionLogs {
+			if len(m.logEntries) <= 0 {
+				m.instructionsScrollOffset = 9999
+				return m, nil
+			}
+			m.selectedLogIndex = max(0, len(m.logEntries)-1)
+			m.logAutoScroll = true
+			return m, nil
+		}
+
+	case "pgup":
+		if m.activeSection == SectionLogs {
+			if len(m.logEntries) <= 0 {
+				m.instructionsScrollOffset = max(0, m.instructionsScrollOffset-5)
+				return m, nil
+			}
+			m.selectedLogIndex = max(0, m.selectedLogIndex-10)
+			if m.selectedLogIndex == 0 {
+				m.logAutoScroll = false
+			}
+			return m, nil
+		}
+
+	case "pgdown", "pagedown":
+		if m.activeSection == SectionLogs {
+			if len(m.logEntries) <= 0 {
+				m.instructionsScrollOffset += 5
+				return m, nil
+			}
+			maxIndex := max(0, len(m.logEntries)-1)
+			m.selectedLogIndex = min(maxIndex, m.selectedLogIndex+10)
+			if m.selectedLogIndex == maxIndex {
+				m.logAutoScroll = true
+			}
+			return m, nil
+		}
+
+	case "enter":
+		return m.showDetails()
+	}
+
+	return m, nil
+}
+
+// nextSection moves to the next section
+func (m *DashboardModel) nextSection() {
+	if m.activeSection == SectionSidebar {
+		if len(m.panels) == 0 {
+			m.activeSection = SectionLogs
+		} else {
+			m.activeSection = SectionCharts
+			m.activePanelIdx = 0
+		}
+		return
+	}
+
+	if m.activeSection == SectionFilter {
+		if len(m.panels) == 0 {
+			m.activeSection = SectionLogs
+		} else {
+			m.activeSection = SectionCharts
+			m.activePanelIdx = 0
+		}
+		return
+	}
+
+	if m.activeSection == SectionCharts {
+		if len(m.panels) == 0 {
+			m.activeSection = SectionLogs
+			return
+		}
+		if m.activePanelIdx < len(m.panels)-1 {
+			m.activePanelIdx++
+		} else {
+			m.activeSection = SectionLogs
+		}
+		return
+	}
+
+	// SectionLogs → sidebar (if visible) or first chart
+	if m.sidebarVisible {
+		m.activeSection = SectionSidebar
+	} else {
+		if len(m.panels) == 0 {
+			m.activeSection = SectionLogs
+		} else {
+			m.activeSection = SectionCharts
+			m.activePanelIdx = 0
+		}
+	}
+}
+
+// prevSection moves to the previous section
+func (m *DashboardModel) prevSection() {
+	if m.activeSection == SectionSidebar {
+		m.activeSection = SectionLogs
+		return
+	}
+
+	if m.activeSection == SectionFilter {
+		m.activeSection = SectionLogs
+		return
+	}
+
+	if m.activeSection == SectionCharts {
+		if len(m.panels) == 0 {
+			m.activeSection = SectionLogs
+			return
+		}
+		if m.activePanelIdx > 0 {
+			m.activePanelIdx--
+		} else if m.sidebarVisible {
+			m.activeSection = SectionSidebar
+		} else {
+			m.activeSection = SectionLogs
+		}
+		return
+	}
+
+	// SectionLogs → last chart panel
+	if len(m.panels) == 0 {
+		m.activeSection = SectionLogs
+		return
+	}
+	m.activeSection = SectionCharts
+	m.activePanelIdx = len(m.panels) - 1
+}
+
+// moveSelection moves the selection within the active section
+func (m *DashboardModel) moveSelection(delta int) {
+	if m.activeSection == SectionLogs {
+		maxItems := len(m.logEntries)
+		if maxItems == 0 {
+			return
+		}
+		newIndex := m.selectedLogIndex + delta
+		if newIndex < 0 {
+			newIndex = 0
+		} else if newIndex >= maxItems {
+			newIndex = maxItems - 1
+		}
+		m.selectedLogIndex = newIndex
+		if m.selectedLogIndex == 0 {
+			m.logAutoScroll = false
+		} else if m.selectedLogIndex == maxItems-1 {
+			m.logAutoScroll = true
+		}
+		return
+	}
+
+	if m.activeSection != SectionCharts || m.activePanelIdx >= len(m.panels) {
+		return
+	}
+
+	maxItems := m.panels[m.activePanelIdx].ItemCount()
+	if maxItems == 0 {
+		return
+	}
+
+	current := m.panelSelIdx[m.activePanelIdx]
+	newIndex := current + delta
+	if newIndex < 0 {
+		newIndex = 0
+	} else if newIndex >= maxItems {
+		newIndex = maxItems - 1
+	}
+	m.panelSelIdx[m.activePanelIdx] = newIndex
+}
+
+// updateSeverityFilterActiveStatus updates whether severity filtering is active
+func (m *DashboardModel) updateSeverityFilterActiveStatus() {
+	m.severityFilterActive = false
+	for _, enabled := range m.severityFilter {
+		if !enabled {
+			m.severityFilterActive = true
+			break
+		}
+	}
+}
+
+// showDetails shows details for the selected item
+func (m *DashboardModel) showDetails() (tea.Model, tea.Cmd) {
+	if m.activeSection == SectionLogs {
+		if m.selectedLogIndex >= 0 && m.selectedLogIndex < len(m.logEntries) {
+			entry := m.logEntries[m.selectedLogIndex]
+			m.PushModal(NewDetailModal(m, &entry))
+		}
+		return m, nil
+	}
+
+	if m.activeSection == SectionCharts && m.activePanelIdx < len(m.panels) {
+		cmd := m.panels[m.activePanelIdx].OnSelect(m.viewContext(), m.panelSelIdx[m.activePanelIdx])
+		return m, cmd
+	}
+
+	return m, nil
+}

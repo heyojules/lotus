@@ -1,0 +1,25 @@
+# Build output
+build/
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Go workspace
+vendor/
+
+# nohup output
+nohup.out
+
+# Claude Code
+.claude/
+
+# Agent skills
+.agents/

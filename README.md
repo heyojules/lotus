@@ -1,0 +1,3 @@
+
+
+also analyze what could be simplified removed... cleaned up most important to know that source of truth is database and tool should bet thin as possible which means deriving state from duckdb querying instead of generating business logic in the middle... clean reliable solution... also TUI and API should be easily scalable creating new decks new TUI elements to visualize different parts cleanly scalable by using internal primitives to scrape from DB.... i like all the TUI elements now keep all them ... just core engine should be clean... and all the extensions plugins will be built on top.... what do u think?
