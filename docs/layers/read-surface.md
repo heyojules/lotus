@@ -10,14 +10,14 @@ Expose stored data for humans (TUI) and agents/tools (HTTP API) without exposing
 - `internal/socketrpc/server.go`
 - `internal/socketrpc/client.go`
 - `internal/tui/*`
-- `cmd/lotus-cli/*`
+- `cmd/lotus-tui/*`
 
 ## Current Design
 
 There are two read surfaces:
 
 1. HTTP API (`/api/health`, `/api/schema`, `/api/query`) served by `internal/httpserver`.
-2. Unix socket JSON-RPC used by `lotus-cli` TUI (`internal/socketrpc` + `internal/tui`).
+2. Unix socket JSON-RPC used by `lotus-tui` TUI (`internal/socketrpc` + `internal/tui`).
 
 Both surfaces ultimately depend on storage-layer interfaces:
 

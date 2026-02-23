@@ -1,7 +1,7 @@
 BINARY := lotus
-BINARY_CLI := lotus-cli
+BINARY_CLI := lotus-tui
 CMD := ./cmd/lotus
-CMD_CLI := ./cmd/lotus-cli
+CMD_CLI := ./cmd/lotus-tui
 BUILD_DIR := ./build
 OUT := $(BUILD_DIR)/$(BINARY)
 OUT_CLI := $(BUILD_DIR)/$(BINARY_CLI)

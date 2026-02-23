@@ -24,7 +24,7 @@
 
 Lotus is a unified observability tool built for AI agents from first principles. It's a headless service that takes in data from TCP streams or stdin, stores everything in DuckDB, and gives you a **read-only HTTP API** to work with. Agents query live and retained data through a thin query layer, no SDKs, no client libraries, no abstractions getting in the way.
 
-There's also a **TUI client** (`lotus-cli`) that connects to the running service over a Unix socket for when a human wants a terminal dashboard. It's a standalone CLI that plugs into the socket RPC layer, completely separate from the service itself.
+There's also a **TUI client** (`lotus-tui`) that connects to the running service over a Unix socket for when a human wants a terminal dashboard. It's a standalone CLI that plugs into the socket RPC layer, completely separate from the service itself.
 
 **Philosophy:**
 
@@ -57,7 +57,7 @@ Input Plugins          Processing              Storage              Read Surface
               ├──→  │  parse +    │──→     │  DuckDB   │──→     │  (agents, scripts)
   stdin     ──┘     │  normalize  │        │           │        └──────────────
      ↑              └─────────────┘        │           │        ┌─ Socket RPC
-     │                    ↓                │           │──→     │  (lotus-cli TUI)
+     │                    ↓                │           │──→     │  (lotus-tui)
   SourceMux          InsertBuffer          │           │        └──────────────
                     (batch append)         └───────────┘
 ```

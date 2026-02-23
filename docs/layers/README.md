@@ -30,7 +30,7 @@ flowchart LR
   D --> E["DuckDB Store\ninternal/duckdb/store.go"]
   E --> F["HTTP API\ninternal/httpserver/server.go"]
   E --> G["Socket RPC\ninternal/socketrpc/server.go"]
-  G --> H["TUI Client\ncmd/lotus-cli/main.go"]
+  G --> H["TUI Client\ncmd/lotus-tui/main.go"]
 ```
 
 ## Files
