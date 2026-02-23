@@ -22,6 +22,7 @@ type Server struct {
 	addr      string
 	store     QueryStore
 	server    *http.Server
+	listener  net.Listener
 	ctx       context.Context
 	cancel    context.CancelFunc
 	startTime time.Time
@@ -63,6 +64,7 @@ func (s *Server) Start() error {
 	if err != nil {
 		return err
 	}
+	s.listener = listener
 
 	s.startTime = time.Now()
 
@@ -76,6 +78,15 @@ func (s *Server) Stop() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	return s.server.Shutdown(ctx)
+}
+
+// Addr returns the active listen address.
+// Before Start, it returns the configured address.
+func (s *Server) Addr() string {
+	if s.listener != nil {
+		return s.listener.Addr().String()
+	}
+	return s.addr
 }
 
 func (s *Server) handleHealth(c *gin.Context) {

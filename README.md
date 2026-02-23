@@ -20,6 +20,13 @@
 
 > *"Imperative for human, declarative for agent"*
 
+## This exist because
+
+- **You shouldn't need motivation to set up persistant logging.** Drop a binary, pipe your output, done.
+- **Agents should fix your bugs, not you.** Lotus is a tiny data warehouse that AI agents can query autonomously to find and fix problems while you focus on things that truly matter.
+- **Instant TUI mount and search.** Need a specific log? Connect and query. No dashboards to configure, no pipelines to deploy, no complexity standing between you and your data.
+
+
 **Observation categories**
 
 - [x] Logs

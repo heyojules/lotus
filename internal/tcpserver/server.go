@@ -133,3 +133,12 @@ func (s *Server) Stop() error {
 func (s *Server) Lines() <-chan model.IngestEnvelope {
 	return s.lineChan
 }
+
+// Addr returns the active listen address.
+// Before Start, it returns the configured address.
+func (s *Server) Addr() string {
+	if s.listener != nil {
+		return s.listener.Addr().String()
+	}
+	return s.addr
+}
