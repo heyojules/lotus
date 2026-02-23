@@ -1,6 +1,6 @@
 name: matrix
 description: Knock Knock, Neo. This is a simple console theme inspired by The Matrix movie, featuring various shades of green text on a black background for a digital rain aesthetic.
-author: Eric Wright (eric@discoposse.com)
+author: Eric Wright
 colors:
   # UI Component Colors
   primary: "#00FF41"           # Bright green for main accents

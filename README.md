@@ -6,10 +6,6 @@
 <p align="center"><strong>Unified observability tool built for agents from first principles</strong></p>
 
 <p align="center">
-  <code>[ ] Logs</code>&ensp;&ensp;<code>[ ] Metrics</code>&ensp;&ensp;<code>[ ] Product Analytics</code>
-</p>
-
-<p align="center">
   Fully imperative. Runs without any configuration needed.
 </p>
 
@@ -21,6 +17,8 @@
 ---
 
 > **Early alpha** &mdash; not ready for production use.
+
+`[ ] Logs` &ensp; `[ ] Metrics` &ensp; `[ ] Product Analytics`
 
 ## What is Lotus?
 
@@ -59,7 +57,7 @@ Lotus ships with 12 color themes. Set the theme in your config file:
 skin: dracula
 ```
 
-Available skins: `controltheory-dark`, `controltheory-light`, `dracula`, `github-light`, `gruvbox`, `matrix`, `monokai`, `nord`, `solarized-dark`, `solarized-light`, `spring`, `vs-code-light`.
+Available skins: `lotus-dark`, `lotus-light`, `dracula`, `github-light`, `gruvbox`, `matrix`, `monokai`, `nord`, `solarized-dark`, `solarized-light`, `spring`, `vs-code-light`.
 
 ## License
 

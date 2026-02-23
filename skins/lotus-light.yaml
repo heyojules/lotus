@@ -1,10 +1,10 @@
-name: controltheory-light
-description: ControlTheory Light - Original Lotus theme, light mode!
-author: ControlTheory
+name: lotus-light
+description: Lotus Light - Original Lotus theme, light mode!
+author: Lotus
 colors:
   # UI Component Colors
-  primary: "#0f93fc"           # ControlTheory blue
-  secondary: "#49E209"         # ControlTheory green
+  primary: "#0f93fc"           # Lotus blue
+  secondary: "#49E209"         # Lotus green
   background: "#ffffff"        # Clean white background
   surface: "#f8f9fa"          # Light gray surface
   border: "#dee2e6"           # Light border
@@ -33,10 +33,10 @@ colors:
   severity_fatal: "#6f42c1"    # Purple for fatal
   
   # Status Colors
-  success: "#49E209"          # ControlTheory green
+  success: "#49E209"          # Lotus green
   warning: "#fd7e14"          # Orange
   error: "#dc3545"            # Red
-  info: "#0f93fc"             # ControlTheory blue
+  info: "#0f93fc"             # Lotus blue
   
   # Special Elements
   help: "#6c757d"             # Muted gray for help

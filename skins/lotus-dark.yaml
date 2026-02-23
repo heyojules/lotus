@@ -1,10 +1,10 @@
-name: controltheory-dark
-description: ControlTheory Dark - Original Lotus theme, dark mode!
-author: ControlTheory
+name: lotus-dark
+description: Lotus Dark - Original Lotus theme, dark mode!
+author: Lotus
 colors:
   # UI Component Colors (using default dark colors)
-  primary: "#0f93fc"           # ControlTheory blue
-  secondary: "#49E209"         # ControlTheory green
+  primary: "#0f93fc"           # Lotus blue
+  secondary: "#49E209"         # Lotus green
   background: "#081C39"        # Dark navy background (default)
   surface: "#2D2D2D"          # Dark gray surface (default)
   border: "#BCBEC0"           # Gray border (default)

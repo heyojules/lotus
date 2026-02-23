@@ -69,7 +69,7 @@ func DefaultSkin() *Skin {
 	return &Skin{
 		Name:        "default",
 		Description: "Default Lotus color scheme - Dark theme",
-		Author:      "ControlTheory",
+		Author:      "Lotus",
 		Colors: SkinColors{
 			// UI Component Colors
 			Primary:       "#0f93fc", // Blue

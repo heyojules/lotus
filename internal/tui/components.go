@@ -9,22 +9,19 @@ import (
 
 // renderLotusBranding renders "Lotus!" with a green to light blue gradient
 func (m *DashboardModel) renderLotusBranding() string {
-	// Define gradient colors from green to light blue
 	colors := []string{
-		"#49E209", // Green (G)
+		"#49E209", // Green (L)
 		"#35DD2F", // (o)
-		"#21D955", // (n)
-		"#0DD47B", // (z)
-		"#00D0A1", // (o)
+		"#21D955", // (t)
+		"#0DD47B", // (u)
+		"#00D0A1", // (s)
 		"#00CAC7", // (!)
 	}
 
-	// "Lotus!" characters
-	chars := []string{"G", "o", "n", "z", "o", "!"}
+	chars := []string{"L", "o", "t", "u", "s", "!"}
 
 	var result string
 	for i, char := range chars {
-		// Use gradient colors, cycling through them
 		style := lipgloss.NewStyle().
 			Background(ColorNavy).
 			Foreground(lipgloss.Color(colors[i])).Bold(true)
@@ -152,13 +149,7 @@ func (m *DashboardModel) renderStatusLine() string {
 		}
 	}
 
-	// Add branding (show unless terminal is very narrow)
-	branding := ""
-	if w >= 30 { // Show branding unless terminal is very narrow
-		branding = m.renderLotusBranding()
-	}
-
-	// Combine status info, timestamp mode, version update, and branding
+	// Combine status info, timestamp mode, and version update
 	var rightParts []string
 	if dataSourceInfo != "" {
 		rightParts = append(rightParts, dataSourceInfo)
@@ -172,8 +163,8 @@ func (m *DashboardModel) renderStatusLine() string {
 	if versionUpdateInfo != "" {
 		rightParts = append(rightParts, versionUpdateInfo)
 	}
-	if branding != "" && w >= 30 {
-		rightParts = append(rightParts, branding)
+	if w >= 30 {
+		rightParts = append(rightParts, m.renderLotusBranding())
 	}
 
 	if len(rightParts) > 0 {

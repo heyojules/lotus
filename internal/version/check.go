@@ -90,7 +90,7 @@ func (c *Checker) CheckInBackground() {
 
 		// Build the API URL with parameters
 		url := fmt.Sprintf(
-			"https://lotus-version.controltheory.com/v1/check?app=lotus&version=%s&platform=%s&arch=%s&commit=%s&channel=%s&anon_id=%s",
+			"https://lotus-version.example.com/v1/check?app=lotus&version=%s&platform=%s&arch=%s&commit=%s&channel=%s&anon_id=%s",
 			c.currentVersion,
 			runtime.GOOS,
 			runtime.GOARCH,

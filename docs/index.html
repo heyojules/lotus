@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="refresh" content="0; url=https://www.controltheory.com/lotus/">
+    <meta http-equiv="refresh" content="0; url=https://github.com/control-theory/lotus">
     <title>Lotus - Real-time Log Analysis Terminal UI</title>
     <meta name="description" content="A powerful, real-time log analysis terminal UI inspired by k9s. Analyze log streams with beautiful charts, AI-powered insights, and advanced filtering.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -37,17 +37,6 @@
             text-align: center;
             position: relative;
         }
-
-        .slack-button {
-            position: absolute; top: 1rem; right: 1rem;
-            display: flex; align-items: center; gap: 0.5rem;
-            background: rgba(255, 255, 255, 0.1); color: var(--white);
-            text-decoration: none; padding: 0.5rem 1rem; border-radius: 8px;
-            font-weight: 500; font-size: 0.9rem; border: 1px solid rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(10px); transition: all 0.3s ease; z-index: 10;
-        }
-        .slack-button:hover { background: rgba(255, 255, 255, 0.2); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); }
-        .slack-icon { width: 18px; height: 18px; fill: currentColor; }
 
         .hero { padding: 1.5rem 0; }
         .hero-content { display: flex; align-items: center; justify-content: center; gap: 2rem; margin-bottom: 2rem; }
@@ -124,7 +113,6 @@
         .heart { color: var(--green); }
 
         @media (max-width: 768px) {
-            .slack-button { position: relative; top: auto; right: auto; margin: 0 auto 1rem; display: inline-flex; }
             .mascot-gif-container { flex-direction: column; gap: 1rem; }
             .mascot img, .hero-gif { height: 250px; }
             .hero h1 { font-size: 2rem; }
@@ -137,13 +125,6 @@
 <body>
     <header>
         <div class="container">
-            <a href="https://join.slack.com/t/ctrltheorycommunity/shared_invite/zt-3dr6rke5w-GlcRaW2bvn4zcSaV8byZgA" class="slack-button" target="_blank" rel="noopener">
-                <svg class="slack-icon" viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.521-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.523 2.521h-2.521V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.521A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.523v-2.521h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/>
-                </svg>
-                Join our Slack
-            </a>
-
             <div class="hero">
                 <div class="hero-content">
                     <div class="mascot-gif-container">
@@ -221,7 +202,7 @@
                 <div class="feature-card">
                     <div class="feature-icon">🎨</div>
                     <h3>Customizable Themes</h3>
-                    <p>11+ beautiful themes available including Dracula, Nord, and GitHub Light. Create custom skins with YAML or use ControlTheory's original themes.</p>
+                    <p>11+ beautiful themes available including Dracula, Nord, and GitHub Light. Create custom skins with YAML or use the built-in Lotus themes.</p>
                 </div>
             </div>
         </div>
@@ -337,8 +318,7 @@ $ cat logs.json | lotus</div>
                 <a href="https://github.com/control-theory/lotus/issues">Report Issues</a>
             </div>
             <p style="margin-bottom: 1rem;">
-                Built with <span class="heart">❤️</span> by
-                <a href="https://controltheory.com" style="color: var(--light-blue); text-decoration: none;">ControlTheory</a>
+                Built with <span class="heart">❤️</span> by the Lotus contributors
             </p>
             <p style="color: var(--gray); font-size: 0.9rem;">
                 Open source software licensed under MIT.
