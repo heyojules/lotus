@@ -97,7 +97,7 @@ Available skins: `lotus-dark`, `lotus-light`, `dracula`, `github-light`, `gruvbo
 ## Screenshots
 
 <p align="center">
-  <img src="assets/Screenshot 2026-02-23 at 10.26.18.png" alt="Lotus running" width="500" />
+  <img src="assets/Screenshot 2026-02-23 at 22.22.09.png" alt="Lotus running" width="500" />
 </p>
 
 <p align="center">
