@@ -20,7 +20,11 @@
 
 > *"Imperative for human, declarative for agent"*
 
-`[ ] Logs` &ensp; `[ ] Metrics` &ensp; `[ ] Product Analytics`
+**Observation categories**
+
+- [x] Logs
+- [ ] Metrics
+- [ ] Product Analytics
 
 ## What is Lotus?
 
