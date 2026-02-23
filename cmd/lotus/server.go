@@ -153,7 +153,7 @@ func configureRuntimeLogger() func() {
 		return func() {}
 	}
 
-	logDir := filepath.Join(home, ".config", "lotus")
+	logDir := filepath.Join(home, ".local", "state", "lotus")
 	if err := os.MkdirAll(logDir, 0755); err != nil {
 		log.SetOutput(os.Stderr)
 		return func() {}

@@ -73,5 +73,5 @@ func DefaultSocketPath() string {
 	if err != nil {
 		return "/tmp/lotus.sock"
 	}
-	return filepath.Join(home, ".config", "lotus", "lotus.sock")
+	return filepath.Join(home, ".local", "state", "lotus", "lotus.sock")
 }
