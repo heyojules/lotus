@@ -28,3 +28,19 @@ type SchemaQuerier interface {
 	GetSchemaDescription() string
 	TableRowCounts() (map[string]int64, error)
 }
+
+// LogWriter provides append-oriented write operations for processed logs.
+type LogWriter interface {
+	InsertLogBatch(records []*LogRecord) error
+}
+
+// LogReader provides the unified read-side query contract.
+type LogReader interface {
+	LogQuerier
+	SchemaQuerier
+}
+
+// ReadAPI is the unified read contract for read surfaces (HTTP and socket RPC).
+type ReadAPI interface {
+	LogReader
+}

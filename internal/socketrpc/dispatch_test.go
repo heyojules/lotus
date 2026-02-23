@@ -49,6 +49,13 @@ func (q *stubQuerier) RecentLogsFiltered(limit int, app string, severityLevels [
 		App:       "default",
 	}}, nil
 }
+func (q *stubQuerier) ExecuteQuery(query string) ([]map[string]interface{}, error) {
+	return []map[string]interface{}{{"ok": true}}, nil
+}
+func (q *stubQuerier) GetSchemaDescription() string { return "schema" }
+func (q *stubQuerier) TableRowCounts() (map[string]int64, error) {
+	return map[string]int64{"logs": 1}, nil
+}
 
 func newTestDispatcher() *Server {
 	return &Server{store: &stubQuerier{}}

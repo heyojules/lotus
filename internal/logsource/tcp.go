@@ -1,6 +1,7 @@
 package logsource
 
 import "github.com/control-theory/lotus/internal/tcpserver"
+import "github.com/control-theory/lotus/internal/model"
 
 // TCPSource wraps a tcpserver.Server as a LogSource.
 type TCPSource struct {
@@ -12,6 +13,6 @@ func NewTCPSource(server *tcpserver.Server) *TCPSource {
 	return &TCPSource{server: server}
 }
 
-func (t *TCPSource) Lines() <-chan string { return t.server.Lines() }
-func (t *TCPSource) Stop()               { _ = t.server.Stop() }
-func (t *TCPSource) Name() string        { return "tcp" }
+func (t *TCPSource) Lines() <-chan model.IngestEnvelope { return t.server.Lines() }
+func (t *TCPSource) Stop()                              { _ = t.server.Stop() }
+func (t *TCPSource) Name() string                       { return "tcp" }

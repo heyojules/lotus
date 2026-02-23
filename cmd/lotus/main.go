@@ -77,6 +77,7 @@ func loadConfig(configPath string) (appConfig, error) {
 	v.SetDefault("test-mode", false)
 	v.SetDefault("tcp-enabled", true)
 	v.SetDefault("tcp-port", defaultTCPPort)
+	v.SetDefault("mux-buffer-size", defaultMuxBufferSize)
 	v.SetDefault("db-path", defaultDBPath)
 	v.SetDefault("skin", defaultSkin)
 	v.SetDefault("disable-version-check", false)
@@ -85,8 +86,10 @@ func loadConfig(configPath string) (appConfig, error) {
 	v.SetDefault("api-enabled", true)
 	v.SetDefault("api-port", defaultAPIPort)
 	v.SetDefault("query-timeout", defaultQueryTimeout)
+	v.SetDefault("max-concurrent-queries", defaultMaxConcurrentReads)
 	v.SetDefault("insert-batch-size", defaultInsertBatchSize)
 	v.SetDefault("insert-flush-interval", defaultInsertFlushInterval)
+	v.SetDefault("insert-flush-queue-size", defaultInsertFlushQueue)
 	v.SetDefault("socket-path", socketrpc.DefaultSocketPath())
 	v.SetDefault("log-retention", defaultLogRetention)
 

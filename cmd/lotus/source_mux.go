@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"sync"
+
+	"github.com/control-theory/lotus/internal/model"
 )
 
 // DefaultMuxBuffer is the default channel buffer size for the source multiplexer.
@@ -14,7 +16,7 @@ type SourceMultiplexer struct {
 	cancel context.CancelFunc
 
 	sources []NamedLogSource
-	lines   chan string
+	lines   chan model.IngestEnvelope
 
 	startOnce sync.Once
 	stopOnce  sync.Once
@@ -31,7 +33,7 @@ func NewSourceMultiplexer(parent context.Context, sources []NamedLogSource, buff
 		ctx:     ctx,
 		cancel:  cancel,
 		sources: sources,
-		lines:   make(chan string, buffer),
+		lines:   make(chan model.IngestEnvelope, buffer),
 	}
 }
 
@@ -77,7 +79,7 @@ func (m *SourceMultiplexer) PrimarySourceName() string {
 	return m.sources[0].Name()
 }
 
-func (m *SourceMultiplexer) Lines() <-chan string {
+func (m *SourceMultiplexer) Lines() <-chan model.IngestEnvelope {
 	return m.lines
 }
 
@@ -93,7 +95,7 @@ func (m *SourceMultiplexer) forward(src NamedLogSource) {
 			if !ok {
 				return
 			}
-			if line == "" {
+			if line.Line == "" {
 				continue
 			}
 			select {

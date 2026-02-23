@@ -29,11 +29,13 @@ func runServer(cfg appConfig) error {
 		return fmt.Errorf("failed to initialize DuckDB: %w", err)
 	}
 	defer store.Close()
+	store.SetMaxConcurrentQueries(cfg.MaxConcurrentReads)
 
 	// Create insert buffer for batched DuckDB writes
 	insertBuffer := duckdb.NewInsertBuffer(store, duckdb.InsertBufferConfig{
-		BatchSize:     cfg.InsertBatchSize,
-		FlushInterval: cfg.InsertFlushInterval,
+		BatchSize:      cfg.InsertBatchSize,
+		FlushInterval:  cfg.InsertFlushInterval,
+		FlushQueueSize: cfg.InsertFlushQueue,
 	})
 	defer insertBuffer.Stop()
 
@@ -94,14 +96,11 @@ func runServer(cfg appConfig) error {
 		}
 	}
 
-	mux := NewSourceMultiplexer(ctx, sources, DefaultMuxBuffer)
+	mux := NewSourceMultiplexer(ctx, sources, cfg.MuxBufferSize)
 	mux.Start()
 
 	// Create the log processor
 	processor := ingest.NewProcessor(insertBuffer, "")
-	if mux.HasSources() {
-		processor.SetSourceName(mux.PrimarySourceName())
-	}
 
 	printStartupBanner(cfg, mux.HasSources())
 
@@ -111,9 +110,8 @@ func runServer(cfg appConfig) error {
 	// Ingestion loop
 	if mux.HasSources() {
 		g.Go(func() error {
-			lines := mux.Lines()
-			for line := range lines {
-				processor.ProcessLine(line)
+			for env := range mux.Lines() {
+				processor.ProcessEnvelope(env)
 			}
 			return nil
 		})

@@ -11,6 +11,7 @@
 
 <p align="center">
   <a href="#architecture">Architecture</a> &bull;
+  <a href="#reliability-and-tuning">Reliability</a> &bull;
   <a href="#themes">Themes</a>
 </p>
 
@@ -48,6 +49,35 @@ Input Plugins          Processing              Storage              Read Surface
   SourceMux          InsertBuffer          │           │        └──────────────
                     (batch append)         └───────────┘
 ```
+
+More detailed layer docs and interface contracts:
+
+- `docs/layers/README.md`
+- `docs/layers/interfaces.md`
+
+## Reliability and Tuning
+
+Lotus is designed to absorb short spikes and apply backpressure under sustained load:
+
+- Buffered ingest path (`tcpserver` + `SourceMux` + `InsertBuffer`)
+- Batched DuckDB writes via async flush worker
+- Read-query concurrency gate to prevent query storms from starving writes
+- Overload signaling on read surfaces (`HTTP 503`, socket RPC `-32001`) for retryable pressure
+
+Key runtime tuning options (optional):
+
+```yaml
+mux-buffer-size: 50000
+insert-batch-size: 2000
+insert-flush-interval: 100ms
+insert-flush-queue-size: 64
+max-concurrent-queries: 8
+```
+
+Notes:
+
+- Defaults are set in code; configuration is optional.
+- Very large single log lines are capped at 1MB per line on TCP/stdin inputs.
 
 ## Themes
 

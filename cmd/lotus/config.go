@@ -11,11 +11,14 @@ const (
 	defaultLogBuffer           = model.DefaultLogBuffer
 	defaultBindHost            = "127.0.0.1"
 	defaultTCPPort             = 4000
+	defaultMuxBufferSize       = DefaultMuxBuffer
 	defaultSkin                = model.DefaultSkin
 	defaultAPIPort             = 3000
 	defaultQueryTimeout        = 30 * time.Second
+	defaultMaxConcurrentReads  = 8
 	defaultInsertBatchSize     = 2000
 	defaultInsertFlushInterval = 100 * time.Millisecond
+	defaultInsertFlushQueue    = 64
 	defaultLogRetention        = 30 // days, 0 = disabled
 )
 
@@ -28,6 +31,7 @@ type appConfig struct {
 	TCPEnabled          bool          `mapstructure:"tcp-enabled"`
 	TCPPort             int           `mapstructure:"tcp-port"`
 	TCPAddr             string        `mapstructure:"tcp-addr"`
+	MuxBufferSize       int           `mapstructure:"mux-buffer-size"`
 	DBPath              string        `mapstructure:"db-path"`
 	Skin                string        `mapstructure:"skin"`
 	DisableVersionCheck bool          `mapstructure:"disable-version-check"`
@@ -37,8 +41,10 @@ type appConfig struct {
 	APIPort             int           `mapstructure:"api-port"`
 	APIAddr             string        `mapstructure:"api-addr"`
 	QueryTimeout        time.Duration `mapstructure:"query-timeout"`
+	MaxConcurrentReads  int           `mapstructure:"max-concurrent-queries"`
 	InsertBatchSize     int           `mapstructure:"insert-batch-size"`
 	InsertFlushInterval time.Duration `mapstructure:"insert-flush-interval"`
+	InsertFlushQueue    int           `mapstructure:"insert-flush-queue-size"`
 	SocketPath          string        `mapstructure:"socket-path"`
 	LogRetention        int           `mapstructure:"log-retention"`
 	ConfigPath          string        `mapstructure:"-"` // not from config file

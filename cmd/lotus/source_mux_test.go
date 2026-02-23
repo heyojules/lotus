@@ -4,24 +4,26 @@ import (
 	"context"
 	"testing"
 	"time"
+
+	"github.com/control-theory/lotus/internal/model"
 )
 
 type fakeSource struct {
 	name    string
-	lines   chan string
+	lines   chan model.IngestEnvelope
 	stopped chan struct{}
 }
 
 func newFakeSource(name string, buffer int) *fakeSource {
 	return &fakeSource{
 		name:    name,
-		lines:   make(chan string, buffer),
+		lines:   make(chan model.IngestEnvelope, buffer),
 		stopped: make(chan struct{}),
 	}
 }
 
-func (s *fakeSource) Lines() <-chan string { return s.lines }
-func (s *fakeSource) Name() string         { return s.name }
+func (s *fakeSource) Lines() <-chan model.IngestEnvelope { return s.lines }
+func (s *fakeSource) Name() string                       { return s.name }
 
 func (s *fakeSource) Stop() {
 	select {
@@ -46,8 +48,8 @@ func TestSourceMultiplexer_ForwardsFromAllSources(t *testing.T) {
 	mux.Start()
 	defer mux.Stop()
 
-	a.lines <- "alpha"
-	b.lines <- "beta"
+	a.lines <- model.IngestEnvelope{Source: "a", Line: "alpha"}
+	b.lines <- model.IngestEnvelope{Source: "b", Line: "beta"}
 	a.Stop()
 	b.Stop()
 
@@ -55,11 +57,11 @@ func TestSourceMultiplexer_ForwardsFromAllSources(t *testing.T) {
 	timeout := time.After(2 * time.Second)
 	for len(got) < 2 {
 		select {
-		case line, ok := <-mux.Lines():
+		case env, ok := <-mux.Lines():
 			if !ok {
 				t.Fatalf("multiplexer closed before receiving expected lines: %+v", got)
 			}
-			got[line] = true
+			got[env.Line] = true
 		case <-timeout:
 			t.Fatalf("timed out waiting for multiplexed lines: %+v", got)
 		}

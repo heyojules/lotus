@@ -3,3 +3,10 @@
 
 tcp-port: 4000
 api-port: 3000
+
+# Spike-handling tuning (optional)
+# mux-buffer-size: 50000
+# insert-batch-size: 2000
+# insert-flush-interval: 100ms
+# insert-flush-queue-size: 64
+# max-concurrent-queries: 8

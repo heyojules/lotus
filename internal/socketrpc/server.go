@@ -2,7 +2,9 @@ package socketrpc
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -21,17 +23,17 @@ const (
 	scannerMaxTokenSize = 10 * 1024 * 1024
 )
 
-// Server exposes a model.LogQuerier over a Unix domain socket using JSON-RPC 2.0.
+// Server exposes the read API over a Unix domain socket using JSON-RPC 2.0.
 type Server struct {
 	socketPath string
-	store      model.LogQuerier
+	store      model.ReadAPI
 	listener   net.Listener
 	wg         sync.WaitGroup
 	quit       chan struct{}
 }
 
 // NewServer creates a new socket RPC server.
-func NewServer(socketPath string, store model.LogQuerier) *Server {
+func NewServer(socketPath string, store model.ReadAPI) *Server {
 	return &Server{
 		socketPath: socketPath,
 		store:      store,
@@ -135,6 +137,10 @@ func (s *Server) dispatch(req Request) Response {
 
 	marshalResult := func(v interface{}, err error) Response {
 		if err != nil {
+			if errorsIsQueryOverload(err) {
+				resp.Error = &RPCError{Code: -32001, Message: "query overloaded or timed out; retry"}
+				return resp
+			}
 			resp.Error = &RPCError{Code: -32000, Message: err.Error()}
 			return resp
 		}
@@ -274,4 +280,8 @@ func (s *Server) dispatch(req Request) Response {
 		resp.Error = &RPCError{Code: -32601, Message: fmt.Sprintf("method not found: %s", req.Method)}
 		return resp
 	}
+}
+
+func errorsIsQueryOverload(err error) bool {
+	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
 }

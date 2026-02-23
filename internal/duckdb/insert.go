@@ -7,6 +7,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/control-theory/lotus/internal/model"
 )
 
 // DefaultFlushQueueSize is the number of batches that can be queued for async flushing.
@@ -15,7 +17,7 @@ const DefaultFlushQueueSize = 64
 // InsertBuffer batches log records and flushes them to DuckDB asynchronously.
 // Add() never blocks on DuckDB writes - records are sent to a flush goroutine.
 type InsertBuffer struct {
-	store         *Store
+	writer        model.LogWriter
 	mu            sync.Mutex
 	pending       []*LogRecord
 	flushChan     chan []*LogRecord // async flush queue
@@ -39,7 +41,7 @@ type InsertBufferConfig struct {
 
 // NewInsertBuffer creates a new insert buffer that flushes to the store.
 // The flush goroutine processes batches asynchronously so Add() never blocks on IO.
-func NewInsertBuffer(store *Store, conf ...InsertBufferConfig) *InsertBuffer {
+func NewInsertBuffer(writer model.LogWriter, conf ...InsertBufferConfig) *InsertBuffer {
 	batchSize := 2000
 	flushInterval := 100 * time.Millisecond
 	flushQueueSize := DefaultFlushQueueSize
@@ -56,7 +58,7 @@ func NewInsertBuffer(store *Store, conf ...InsertBufferConfig) *InsertBuffer {
 	}
 
 	b := &InsertBuffer{
-		store:         store,
+		writer:        writer,
 		pending:       make([]*LogRecord, 0, batchSize),
 		flushChan:     make(chan []*LogRecord, flushQueueSize),
 		maxBatch:      batchSize,
@@ -120,7 +122,7 @@ func (b *InsertBuffer) drainPending() {
 	case b.flushChan <- batch:
 	default:
 		b.logBackpressure()
-		if err := b.store.InsertLogBatch(batch); err != nil {
+		if err := b.writer.InsertLogBatch(batch); err != nil {
 			log.Printf("duckdb flush error (inline): %v", err)
 		}
 	}
@@ -130,7 +132,7 @@ func (b *InsertBuffer) drainPending() {
 func (b *InsertBuffer) flushWorker() {
 	defer b.wg.Done()
 	for batch := range b.flushChan {
-		if err := b.store.InsertLogBatch(batch); err != nil {
+		if err := b.writer.InsertLogBatch(batch); err != nil {
 			log.Printf("duckdb flush error: %v", err)
 		}
 	}
@@ -155,7 +157,7 @@ func (b *InsertBuffer) Add(record *LogRecord) {
 			// Backpressure safety valve: flush inline instead of spawning
 			// unbounded goroutines under sustained overload.
 			b.logBackpressure()
-			if err := b.store.InsertLogBatch(batch); err != nil {
+			if err := b.writer.InsertLogBatch(batch); err != nil {
 				log.Printf("duckdb flush error (overflow-inline): %v", err)
 			}
 		}

@@ -8,8 +8,8 @@ import (
 
 // JSON-RPC 2.0 Method Reference
 //
-// The socket RPC server exposes model.LogQuerier over Unix domain socket.
-// Each method maps 1:1 to the LogQuerier interface.
+// The socket RPC server exposes the log-query subset of model.ReadAPI over Unix domain socket.
+// Each method maps 1:1 to the LogQuerier portion of that interface.
 //
 //   Method                    Params                                              Result
 //   ──────────────────────    ──────────────────────────────────────────────────   ─────────────────────────

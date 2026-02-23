@@ -3,8 +3,12 @@ package tcpserver
 import (
 	"bufio"
 	"context"
+	"errors"
+	"log"
 	"net"
 	"sync"
+
+	"github.com/control-theory/lotus/internal/model"
 )
 
 const (
@@ -25,7 +29,7 @@ type ServerConfig struct {
 type Server struct {
 	listener    net.Listener
 	addr        string
-	lineChan    chan string
+	lineChan    chan model.IngestEnvelope
 	maxLineSize int
 	ctx         context.Context
 	cancel      context.CancelFunc
@@ -50,7 +54,7 @@ func NewServer(addr string, conf ...ServerConfig) *Server {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Server{
 		addr:        addr,
-		lineChan:    make(chan string, lineChannelSize),
+		lineChan:    make(chan model.IngestEnvelope, lineChannelSize),
 		maxLineSize: maxLineSize,
 		ctx:         ctx,
 		cancel:      cancel,
@@ -100,10 +104,17 @@ func (s *Server) handleConnection(conn net.Conn) {
 			continue
 		}
 		select {
-		case s.lineChan <- line:
+		case s.lineChan <- model.IngestEnvelope{Source: "tcp", Line: line}:
 		case <-s.ctx.Done():
 			return
 		}
+	}
+	if err := scanner.Err(); err != nil {
+		if errors.Is(err, bufio.ErrTooLong) {
+			log.Printf("tcpserver: dropped connection %s due to line exceeding max size (%d bytes)", conn.RemoteAddr(), s.maxLineSize)
+			return
+		}
+		log.Printf("tcpserver: scanner error from %s: %v", conn.RemoteAddr(), err)
 	}
 }
 
@@ -119,6 +130,6 @@ func (s *Server) Stop() error {
 }
 
 // Lines returns the channel of received log lines.
-func (s *Server) Lines() <-chan string {
+func (s *Server) Lines() <-chan model.IngestEnvelope {
 	return s.lineChan
 }

@@ -4,11 +4,15 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"regexp"
 	"strings"
 )
+
+// ErrTooManyConcurrentQueries is returned when the query concurrency gate is full.
+var ErrTooManyConcurrentQueries = errors.New("too many concurrent queries")
 
 // dangerousKeywordPattern matches dangerous SQL keywords at word boundaries.
 // This avoids false positives like "RESET" matching "SET".
@@ -38,7 +42,25 @@ func stripSQLComments(query string) string {
 
 // queryCtx returns a context with the store's configured query timeout.
 func (s *Store) queryCtx() (context.Context, context.CancelFunc) {
-	return context.WithTimeout(context.Background(), s.QueryTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), s.QueryTimeout)
+
+	// Fast-fail when read concurrency is saturated.
+	// This avoids piling up waiting readers that could delay writes under load.
+	if s.querySlots == nil {
+		return ctx, cancel
+	}
+	select {
+	case s.querySlots <- struct{}{}:
+		return ctx, func() {
+			<-s.querySlots
+			cancel()
+		}
+	default:
+		cancel()
+		deniedCtx, deniedCancel := context.WithCancel(context.Background())
+		deniedCancel()
+		return deniedCtx, func() {}
+	}
 }
 
 // appFilter returns a WHERE clause and args when opts.App is non-empty.

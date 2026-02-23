@@ -5,7 +5,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/control-theory/lotus/internal/duckdb"
 	"github.com/control-theory/lotus/internal/model"
 )
 
@@ -16,27 +15,34 @@ const maxJSONBufferSize = 10 * 1024 * 1024 // 10 MB
 // Processor handles log line parsing, analysis, and routing to storage.
 // All methods are safe for concurrent use.
 type Processor struct {
-	mu           sync.Mutex
-	insertBuffer *duckdb.InsertBuffer
-	sourceName   string
+	mu         sync.Mutex
+	sink       RecordSink
+	sourceName string
 
 	// JSON accumulation for multi-line JSON support
 	jsonBuffer   strings.Builder
 	jsonDepth    int
 	inJsonObject bool
+	jsonSource   string
 
 	// Result from processCompleteJSON, consumed by ProcessLine
 	lastResult *ProcessResult
 }
 
+// RecordSink accepts processed records.
+// InsertBuffer is one implementation.
+type RecordSink interface {
+	Add(*model.LogRecord)
+}
+
 // NewProcessor creates a new log processor.
 func NewProcessor(
-	insertBuffer *duckdb.InsertBuffer,
+	sink RecordSink,
 	sourceName string,
 ) *Processor {
 	return &Processor{
-		insertBuffer: insertBuffer,
-		sourceName:   sourceName,
+		sink:       sink,
+		sourceName: sourceName,
 	}
 }
 
@@ -49,11 +55,30 @@ type ProcessResult struct {
 // Returns nil if the line is being accumulated as part of a multi-line JSON object.
 // Safe for concurrent use.
 func (p *Processor) ProcessLine(line string) *ProcessResult {
+	return p.ProcessEnvelope(model.IngestEnvelope{
+		Source: p.sourceName,
+		Line:   line,
+	})
+}
+
+// ProcessEnvelope processes one source-tagged line and returns the parsed entry.
+// Returns nil if the line is being accumulated as part of a multi-line JSON object.
+// Safe for concurrent use.
+func (p *Processor) ProcessEnvelope(env model.IngestEnvelope) *ProcessResult {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
+	if env.Line == "" {
+		return nil
+	}
+
+	source := env.Source
+	if source == "" {
+		source = p.sourceName
+	}
+
 	// Handle multi-line JSON accumulation
-	if p.tryAccumulateJSON(line) {
+	if p.tryAccumulateJSON(env.Line, source) {
 		// If accumulation completed a JSON object, return its result
 		if p.lastResult != nil {
 			result := p.lastResult
@@ -63,13 +88,13 @@ func (p *Processor) ProcessLine(line string) *ProcessResult {
 		return nil
 	}
 
-	return p.processEntry(line)
+	return p.processEntry(env.Line, source)
 }
 
 // processEntry parses a line, analyzes it, and stores it.
 // Caller must hold p.mu. The lock is released before calling insertBuffer.Add()
 // to avoid holding the mutex during potential backpressure-induced DuckDB flushes.
-func (p *Processor) processEntry(line string) *ProcessResult {
+func (p *Processor) processEntry(line, source string) *ProcessResult {
 	// Try parsing as JSON first, fall back to plain text
 	record := ParseJSONLogEntry(line)
 	if record == nil {
@@ -88,14 +113,14 @@ func (p *Processor) processEntry(line string) *ProcessResult {
 	if record.Hostname == "" {
 		record.Hostname = record.Attributes["host.name"]
 	}
-	record.Source = p.sourceName
+	record.Source = source
 
-	buf := p.insertBuffer
+	sink := p.sink
 	// Release lock before potentially slow buffer insertion.
 	p.mu.Unlock()
 
-	if buf != nil {
-		buf.Add(record)
+	if sink != nil {
+		sink.Add(record)
 	}
 
 	// Re-acquire lock (caller expects it held via defer).
@@ -108,7 +133,7 @@ func (p *Processor) processEntry(line string) *ProcessResult {
 
 // tryAccumulateJSON attempts to accumulate multi-line JSON and process when complete.
 // Returns true if the line was consumed (either accumulated or completed).
-func (p *Processor) tryAccumulateJSON(line string) bool {
+func (p *Processor) tryAccumulateJSON(line, source string) bool {
 	trimmed := strings.TrimSpace(line)
 
 	if !p.inJsonObject {
@@ -116,6 +141,7 @@ func (p *Processor) tryAccumulateJSON(line string) bool {
 			p.inJsonObject = true
 			p.jsonBuffer.Reset()
 			p.jsonDepth = 0
+			p.jsonSource = source
 			p.jsonBuffer.WriteString(line)
 			p.jsonBuffer.WriteString("\n")
 
@@ -123,8 +149,9 @@ func (p *Processor) tryAccumulateJSON(line string) bool {
 
 			if p.jsonDepth <= 0 {
 				completeJSON := strings.TrimSpace(p.jsonBuffer.String())
+				jsonSource := p.jsonSource
 				p.resetJSONAccumulation()
-				p.processCompleteJSON(completeJSON)
+				p.processCompleteJSON(completeJSON, jsonSource)
 				return true
 			}
 
@@ -146,8 +173,9 @@ func (p *Processor) tryAccumulateJSON(line string) bool {
 
 	if p.jsonDepth <= 0 {
 		completeJSON := strings.TrimSpace(p.jsonBuffer.String())
+		jsonSource := p.jsonSource
 		p.resetJSONAccumulation()
-		p.processCompleteJSON(completeJSON)
+		p.processCompleteJSON(completeJSON, jsonSource)
 		return true
 	}
 
@@ -191,13 +219,14 @@ func CountJSONDepth(line string) int {
 func (p *Processor) resetJSONAccumulation() {
 	p.inJsonObject = false
 	p.jsonDepth = 0
+	p.jsonSource = ""
 	p.jsonBuffer.Reset()
 }
 
 // processCompleteJSON processes a complete JSON object (single or multi-line).
-func (p *Processor) processCompleteJSON(jsonStr string) {
+func (p *Processor) processCompleteJSON(jsonStr, source string) {
 	// This goes through the same path as a single line
-	p.lastResult = p.processEntry(jsonStr)
+	p.lastResult = p.processEntry(jsonStr, source)
 }
 
 // SetSourceName updates the source name used for log records.

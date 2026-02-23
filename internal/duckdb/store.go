@@ -17,6 +17,7 @@ type Store struct {
 	mu           sync.RWMutex
 	dbPath       string
 	QueryTimeout time.Duration
+	querySlots   chan struct{}
 }
 
 // NewStore opens or creates a DuckDB database.
@@ -56,6 +57,7 @@ func NewStore(dbPath string, queryTimeout ...time.Duration) (*Store, error) {
 		db:           db,
 		dbPath:       dbPath,
 		QueryTimeout: qt,
+		querySlots:   make(chan struct{}, 8),
 	}, nil
 }
 
@@ -67,6 +69,19 @@ func (s *Store) Close() error {
 // DB returns the underlying *sql.DB for direct query access (e.g., AI queries).
 func (s *Store) DB() *sql.DB {
 	return s.db
+}
+
+// SetMaxConcurrentQueries configures global read-query concurrency.
+// Values <= 0 disable the limit.
+func (s *Store) SetMaxConcurrentQueries(n int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if n <= 0 {
+		s.querySlots = nil
+		return
+	}
+	s.querySlots = make(chan struct{}, n)
 }
 
 // DeleteBefore deletes all log records with a timestamp before the given cutoff.

@@ -7,3 +7,6 @@ import "github.com/control-theory/lotus/internal/model"
 type QueryOpts = model.QueryOpts
 type LogQuerier = model.LogQuerier
 type SchemaQuerier = model.SchemaQuerier
+type LogWriter = model.LogWriter
+type LogReader = model.LogReader
+type ReadAPI = model.ReadAPI

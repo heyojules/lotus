@@ -12,8 +12,8 @@ import (
 // mockQuerier is a minimal LogQuerier for roundtrip testing.
 type mockQuerier struct{}
 
-func (m *mockQuerier) TotalLogCount(opts model.QueryOpts) (int64, error)   { return 42, nil }
-func (m *mockQuerier) TotalLogBytes(opts model.QueryOpts) (int64, error)   { return 1024, nil }
+func (m *mockQuerier) TotalLogCount(opts model.QueryOpts) (int64, error) { return 42, nil }
+func (m *mockQuerier) TotalLogBytes(opts model.QueryOpts) (int64, error) { return 1024, nil }
 func (m *mockQuerier) SeverityCounts(opts model.QueryOpts) (map[string]int64, error) {
 	return map[string]int64{"INFO": 10, "ERROR": 2}, nil
 }
@@ -55,6 +55,13 @@ func (m *mockQuerier) RecentLogsFiltered(limit int, app string, severityLevels [
 		Source:     "tcp",
 		App:        "app1",
 	}}, nil
+}
+func (m *mockQuerier) ExecuteQuery(query string) ([]map[string]interface{}, error) {
+	return []map[string]interface{}{{"ok": true}}, nil
+}
+func (m *mockQuerier) GetSchemaDescription() string { return "schema" }
+func (m *mockQuerier) TableRowCounts() (map[string]int64, error) {
+	return map[string]int64{"logs": 1}, nil
 }
 
 func startTestServer(t *testing.T) (string, *socketrpc.Server) {

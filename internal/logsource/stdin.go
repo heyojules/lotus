@@ -3,7 +3,11 @@ package logsource
 import (
 	"bufio"
 	"context"
+	"errors"
+	"log"
 	"os"
+
+	"github.com/control-theory/lotus/internal/model"
 )
 
 const (
@@ -22,7 +26,7 @@ type StdinConfig struct {
 
 // StdinSource reads log lines from stdin.
 type StdinSource struct {
-	ch     chan string
+	ch     chan model.IngestEnvelope
 	cancel context.CancelFunc
 }
 
@@ -40,7 +44,7 @@ func NewStdinSource(ctx context.Context, conf ...StdinConfig) *StdinSource {
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	s := &StdinSource{
-		ch:     make(chan string, bufferSize),
+		ch:     make(chan model.IngestEnvelope, bufferSize),
 		cancel: cancel,
 	}
 	go s.read(ctx, maxLineSize)
@@ -74,6 +78,13 @@ func (s *StdinSource) read(ctx context.Context, maxLineSize int) {
 				return
 			}
 		}
+		if err := scanner.Err(); err != nil {
+			if errors.Is(err, bufio.ErrTooLong) {
+				log.Printf("logsource: stdin line exceeded max size (%d bytes), stopping stdin source", maxLineSize)
+				return
+			}
+			log.Printf("logsource: stdin scanner error: %v", err)
+		}
 	}()
 
 	for {
@@ -85,7 +96,7 @@ func (s *StdinSource) read(ctx context.Context, maxLineSize int) {
 				return
 			}
 			select {
-			case s.ch <- r.line:
+			case s.ch <- model.IngestEnvelope{Source: s.Name(), Line: r.line}:
 			case <-ctx.Done():
 				return
 			}
@@ -93,6 +104,6 @@ func (s *StdinSource) read(ctx context.Context, maxLineSize int) {
 	}
 }
 
-func (s *StdinSource) Lines() <-chan string { return s.ch }
-func (s *StdinSource) Stop()               { s.cancel() }
-func (s *StdinSource) Name() string        { return "stdin" }
+func (s *StdinSource) Lines() <-chan model.IngestEnvelope { return s.ch }
+func (s *StdinSource) Stop()                              { s.cancel() }
+func (s *StdinSource) Name() string                       { return "stdin" }

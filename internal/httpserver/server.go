@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -13,8 +14,7 @@ import (
 
 // QueryStore is the narrow store contract required by the HTTP API.
 type QueryStore interface {
-	model.SchemaQuerier
-	TotalLogCount(opts model.QueryOpts) (int64, error)
+	model.ReadAPI
 }
 
 // Server provides an HTTP API for querying Lotus analytics.
@@ -136,6 +136,10 @@ func (s *Server) handleQuery(c *gin.Context) {
 
 	results, err := s.store.ExecuteQuery(req.SQL)
 	if err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "query overloaded or timed out; retry"})
+			return
+		}
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
