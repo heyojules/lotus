@@ -8,7 +8,6 @@ import (
 	"log"
 	"regexp"
 	"strings"
-	"time"
 )
 
 // dangerousKeywordPattern matches dangerous SQL keywords at word boundaries.
@@ -255,16 +254,15 @@ func (s *Store) SeverityCounts(opts QueryOpts) (map[string]int64, error) {
 	return result, rows.Err()
 }
 
-// SeverityCountsByMinute returns per-minute severity breakdowns for a time window.
-func (s *Store) SeverityCountsByMinute(window time.Duration, opts QueryOpts) ([]MinuteCounts, error) {
+// SeverityCountsByMinute returns per-minute severity breakdowns for all logs.
+func (s *Store) SeverityCountsByMinute(opts QueryOpts) ([]MinuteCounts, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	ctx, cancel := s.queryCtx()
 	defer cancel()
-	cutoff := time.Now().Add(-window)
 
-	andApp, aArgs := appAnd(opts)
+	where, wArgs := appFilter(opts)
 	query := fmt.Sprintf(`
 		SELECT date_trunc('minute', timestamp) as minute,
 			SUM(CASE WHEN level='TRACE' THEN 1 ELSE 0 END) as trace,
@@ -274,12 +272,10 @@ func (s *Store) SeverityCountsByMinute(window time.Duration, opts QueryOpts) ([]
 			SUM(CASE WHEN level='ERROR' THEN 1 ELSE 0 END) as error,
 			SUM(CASE WHEN level='FATAL' THEN 1 ELSE 0 END) as fatal,
 			COUNT(*) as total
-		FROM logs
-		WHERE timestamp >= ?%s
-		GROUP BY minute ORDER BY minute`, andApp)
+		FROM logs %s
+		GROUP BY minute ORDER BY minute`, where)
 
-	args := append([]interface{}{cutoff}, aArgs...)
-	rows, err := s.db.QueryContext(ctx, query, args...)
+	rows, err := s.db.QueryContext(ctx, query, wArgs...)
 	if err != nil {
 		return nil, err
 	}

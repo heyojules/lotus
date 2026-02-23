@@ -14,25 +14,27 @@
   <a href="#themes">Themes</a>
 </p>
 
----
-
 > **Early alpha** &mdash; not ready for production use.
 
 `[ ] Logs` &ensp; `[ ] Metrics` &ensp; `[ ] Product Analytics`
 
 ## What is Lotus?
 
-Lotus is a unified observability tool built for AI agents from first principles. It is a headless service that ingests data from TCP streams or stdin, stores everything in DuckDB, and exposes a **read-only HTTP API** as its primary interface. Agents query live and retained data directly via SQL&mdash;no SDKs, no client libraries, no abstractions.
+Lotus is a unified observability tool built for AI agents from first principles. It's a headless service that takes in data from TCP streams or stdin, stores everything in DuckDB, and gives you a **read-only HTTP API** to work with. Agents query live and retained data directly via SQL, no SDKs, no client libraries, no abstractions getting in the way.
 
-A separate **TUI client** (`lotus-cli`) connects to the running service over a Unix socket for human operators who want a terminal dashboard. The TUI is not part of the service&mdash;it is a standalone CLI that plugs into the socket RPC layer.
+There's also a **TUI client** (`lotus-cli`) that connects to the running service over a Unix socket for when a human wants a terminal dashboard. It's a standalone CLI that plugs into the socket RPC layer, completely separate from the service itself.
 
 **Philosophy:**
 
-- **Simplicity** &mdash; no abstractions, no indirections, no layers that don't need to exist
-- **Imperative** &mdash; drop the binary on a machine, run it, done. Zero configuration needed
-- **AI agent first** &mdash; the HTTP API is the primary read surface, designed for programmatic access
-- **Easily extendable** &mdash; thin application layer makes it straightforward to add new inputs or read surfaces
-- **DuckDB is the single source of truth** &mdash; all state derives from SQL queries, no in-memory caches or secondary stores
+**Simplicity** &mdash; no abstractions, no indirections, no layers that don't need to exist
+
+**Imperative** &mdash; drop the binary on a machine, run it, done. Zero configuration needed
+
+**AI agent first** &mdash; the HTTP API is the primary read surface, designed for programmatic access
+
+**Easily extendable** &mdash; thin application layer makes it straightforward to add new inputs or read surfaces
+
+**DuckDB is the single source of truth** &mdash; all state derives from SQL queries, no in-memory caches or secondary stores
 
 ## Architecture
 

@@ -133,9 +133,9 @@ func (c *Client) SeverityCounts(opts model.QueryOpts) (map[string]int64, error) 
 	return result, err
 }
 
-func (c *Client) SeverityCountsByMinute(window time.Duration, opts model.QueryOpts) ([]model.MinuteCounts, error) {
+func (c *Client) SeverityCountsByMinute(opts model.QueryOpts) ([]model.MinuteCounts, error) {
 	var result []model.MinuteCounts
-	err := c.call("SeverityCountsByMinute", map[string]interface{}{"Window": window, "Opts": opts}, &result)
+	err := c.call("SeverityCountsByMinute", map[string]interface{}{"Opts": opts}, &result)
 	return result, err
 }
 

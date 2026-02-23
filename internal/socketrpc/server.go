@@ -216,13 +216,12 @@ func (s *Server) dispatch(req Request) Response {
 
 	case "SeverityCountsByMinute":
 		var p struct {
-			Window time.Duration
-			Opts   model.QueryOpts
+			Opts model.QueryOpts
 		}
-		if err := json.Unmarshal(req.Params, &p); err != nil {
+		if err := json.Unmarshal(req.Params, &p); err != nil && len(req.Params) > 0 {
 			return invalidParams(err)
 		}
-		return marshalResult(s.store.SeverityCountsByMinute(p.Window, p.Opts))
+		return marshalResult(s.store.SeverityCountsByMinute(p.Opts))
 
 	case "TopHosts":
 		var p struct {

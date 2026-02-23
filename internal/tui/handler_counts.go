@@ -1,8 +1,6 @@
 package tui
 
 import (
-	"time"
-
 	"github.com/control-theory/lotus/internal/model"
 
 	"github.com/charmbracelet/bubbles/viewport"
@@ -41,7 +39,7 @@ func (c *CountsModal) Refresh() {
 	opts := c.dashboard.queryOpts()
 
 	// Heatmap data
-	if rows, err := store.SeverityCountsByMinute(60*time.Minute, opts); err == nil {
+	if rows, err := store.SeverityCountsByMinute(opts); err == nil {
 		c.countsHeatmapData = rows
 	}
 

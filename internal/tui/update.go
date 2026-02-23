@@ -243,8 +243,7 @@ func (m *DashboardModel) refreshCountsHistoryFromStore() {
 		return
 	}
 
-	window := 50 * time.Minute
-	rows, err := m.store.SeverityCountsByMinute(window, m.queryOpts())
+	rows, err := m.store.SeverityCountsByMinute(m.queryOpts())
 	if err != nil {
 		return
 	}

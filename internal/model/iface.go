@@ -1,7 +1,5 @@
 package model
 
-import "time"
-
 // QueryOpts holds optional filters applied to most queries.
 type QueryOpts struct {
 	App string // empty = all apps
@@ -16,7 +14,7 @@ type LogQuerier interface {
 	TopAttributeKeys(limit int, opts QueryOpts) ([]AttributeKeyStat, error)
 	AttributeKeyValues(key string, limit int) (map[string]int64, error)
 	SeverityCounts(opts QueryOpts) (map[string]int64, error)
-	SeverityCountsByMinute(window time.Duration, opts QueryOpts) ([]MinuteCounts, error)
+	SeverityCountsByMinute(opts QueryOpts) ([]MinuteCounts, error)
 	TopHosts(limit int, opts QueryOpts) ([]DimensionCount, error)
 	TopServices(limit int, opts QueryOpts) ([]DimensionCount, error)
 	TopServicesBySeverity(severity string, limit int, opts QueryOpts) ([]DimensionCount, error)

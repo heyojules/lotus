@@ -79,6 +79,12 @@ func (p *Processor) processEntry(line string) *ProcessResult {
 	// Fill in fields derived by the processor
 	record.Service = ExtractService(record.Attributes)
 	record.Hostname = record.Attributes["host"]
+	if record.Hostname == "" {
+		record.Hostname = record.Attributes["hostname"]
+	}
+	if record.Hostname == "" {
+		record.Hostname = record.Attributes["host.name"]
+	}
 	record.Source = p.sourceName
 
 	buf := p.insertBuffer

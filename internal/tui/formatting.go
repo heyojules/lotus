@@ -46,7 +46,13 @@ func (m *DashboardModel) formatLogEntry(entry model.LogRecord, availableWidth in
 			} else {
 				// Normal mode: show host.name and service.name from log attributes
 				host := entry.Attributes["host.name"]
+				if host == "" {
+					host = entry.Hostname
+				}
 				service := entry.Attributes["service.name"]
+				if service == "" {
+					service = entry.Service
+				}
 
 				// Truncate to fit column width
 				if len(host) > 12 {
@@ -140,7 +146,13 @@ func (m *DashboardModel) formatLogEntry(entry model.LogRecord, availableWidth in
 		} else {
 			// Normal mode: show host.name and service.name from log attributes
 			host := entry.Attributes["host.name"]
+			if host == "" {
+				host = entry.Hostname
+			}
 			service := entry.Attributes["service.name"]
+			if service == "" {
+				service = entry.Service
+			}
 
 			// Truncate to fit column width (12 chars / 16 chars)
 			if len(host) > 12 {
