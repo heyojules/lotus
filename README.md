@@ -15,7 +15,8 @@
   <a href="#themes">Themes</a>
 </p>
 
-> **Early alpha** &mdash; not ready for production use.
+> [!WARNING]
+> **Still in heavy development** &mdash; not ready for production use.
 
 > *"Imperative for human, declarative for agent"*
 
