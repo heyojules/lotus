@@ -16,6 +16,8 @@
 
 > **Early alpha** &mdash; not ready for production use.
 
+> *"Imperative for human, declarative for agent"*
+
 `[ ] Logs` &ensp; `[ ] Metrics` &ensp; `[ ] Product Analytics`
 
 ## What is Lotus?
