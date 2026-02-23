@@ -78,6 +78,9 @@ func (p *Processor) processEntry(line string) *ProcessResult {
 
 	// Fill in fields derived by the processor
 	record.Service = ExtractService(record.Attributes)
+	if record.Service == "unknown" && record.App != "" && record.App != "default" {
+		record.Service = record.App
+	}
 	record.Hostname = record.Attributes["host"]
 	if record.Hostname == "" {
 		record.Hostname = record.Attributes["hostname"]

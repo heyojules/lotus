@@ -14,6 +14,14 @@
   <a href="#themes">Themes</a>
 </p>
 
+<p align="center">
+  <img src="assets/Screenshot 2026-02-23 at 10.26.18.png" alt="Lotus running" width="500" />
+</p>
+
+<p align="center">
+  <img src="assets/Screenshot 2026-02-23 at 10.25.45.png" alt="Lotus TUI dashboard" width="700" />
+</p>
+
 > **Early alpha** &mdash; not ready for production use.
 
 `[ ] Logs` &ensp; `[ ] Metrics` &ensp; `[ ] Product Analytics`
@@ -50,6 +58,36 @@ Input Plugins          Processing              Storage              Read Surface
   SourceMux          InsertBuffer          │           │        └──────────────
                     (batch append)         └───────────┘
 ```
+
+## Use Cases
+
+**Run a command and watch logs in the TUI**
+
+Pipe any process into Lotus and get a live terminal dashboard. Useful for long-running scripts, build pipelines, or agent loops where you want structured, searchable logs without leaving the terminal.
+
+```bash
+my-agent run | lotus
+# then in another terminal:
+lotus-cli
+```
+
+> Tailscale setup recommended — Lotus runs locally and is not exposed to the internet, so Tailscale gives you secure remote access to the TUI and HTTP API from any device on your tailnet.
+
+**Connect an autonomous agent to analyze your data**
+
+Connect your autonomous agent (e.g. OpenClaw) to the Lotus HTTP API. A thin surface layer sits between agents and the data — flexible enough to support any query pattern while acting as a secure boundary. Agents read your logs and analytics, then act on them: opening PRs to fix recurring errors, making business decisions from product analytics, auto-scaling, incident triage, or any workflow you wire up.
+
+**Observability backend for multi-agent systems**
+
+When you have multiple agents running concurrently, pipe all their output into Lotus over TCP. Query across all agents from a single DuckDB instance — correlate events, track which agent did what, spot failures across the fleet.
+
+**Local development dashboard**
+
+Use Lotus as a lightweight alternative to spinning up Grafana/Loki/Prometheus during development. One binary, zero config, instant structured logs with a TUI.
+
+**CI/CD pipeline debugging**
+
+Pipe CI job output into Lotus, then query specific error patterns or timing data after the run. Faster than scrolling through raw build logs.
 
 ## Themes
 
