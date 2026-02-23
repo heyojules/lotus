@@ -14,14 +14,6 @@
   <a href="#themes">Themes</a>
 </p>
 
-<p align="center">
-  <img src="assets/Screenshot 2026-02-23 at 10.26.18.png" alt="Lotus running" width="500" />
-</p>
-
-<p align="center">
-  <img src="assets/Screenshot 2026-02-23 at 10.25.45.png" alt="Lotus TUI dashboard" width="700" />
-</p>
-
 > **Early alpha** &mdash; not ready for production use.
 
 `[ ] Logs` &ensp; `[ ] Metrics` &ensp; `[ ] Product Analytics`
@@ -98,6 +90,16 @@ skin: dracula
 ```
 
 Available skins: `lotus-dark`, `lotus-light`, `dracula`, `github-light`, `gruvbox`, `matrix`, `monokai`, `nord`, `solarized-dark`, `solarized-light`, `spring`, `vs-code-light`.
+
+## Screenshots
+
+<p align="center">
+  <img src="assets/Screenshot 2026-02-23 at 10.26.18.png" alt="Lotus running" width="500" />
+</p>
+
+<p align="center">
+  <img src="assets/Screenshot 2026-02-23 at 10.25.45.png" alt="Lotus TUI dashboard" width="700" />
+</p>
 
 ## License
 
