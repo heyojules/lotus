@@ -24,7 +24,7 @@
 
 - [x] Logs
 - [ ] Metrics
-- [ ] Product Analytics
+- [ ] Analytics
 
 ## What is Lotus?
 
