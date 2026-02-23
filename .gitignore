@@ -1,5 +1,6 @@
 # Build output
 build/
+lotus
 
 # IDE and editor files
 .idea/
