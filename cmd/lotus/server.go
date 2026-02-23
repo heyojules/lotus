@@ -37,6 +37,14 @@ func runServer(cfg appConfig) error {
 	})
 	defer insertBuffer.Stop()
 
+	// Start retention cleaner for automatic log expiry
+	retentionCleaner := duckdb.NewRetentionCleaner(store, duckdb.RetentionConfig{
+		RetentionDays: cfg.LogRetention,
+	})
+	if retentionCleaner != nil {
+		defer retentionCleaner.Stop()
+	}
+
 	// Start HTTP API server if enabled
 	if cfg.APIEnabled {
 		apiServer := httpserver.NewServer(cfg.APIAddr, store)
@@ -86,7 +94,7 @@ func runServer(cfg appConfig) error {
 		}
 	}
 
-	mux := NewSourceMultiplexer(ctx, sources, 50000)
+	mux := NewSourceMultiplexer(ctx, sources, DefaultMuxBuffer)
 	mux.Start()
 
 	// Create the log processor
@@ -126,7 +134,9 @@ func runServer(cfg appConfig) error {
 	})
 
 	// Wait for either signal or all sources to close.
-	_ = g.Wait()
+	if err := g.Wait(); err != nil {
+		log.Printf("server: errgroup exited with error: %v", err)
+	}
 
 	cancel()
 	mux.Stop()

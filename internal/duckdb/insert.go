@@ -2,14 +2,15 @@ package duckdb
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"sync"
 	"sync/atomic"
 	"time"
 )
 
-// defaultFlushQueueSize is the number of batches that can be queued for async flushing.
-const defaultFlushQueueSize = 64
+// DefaultFlushQueueSize is the number of batches that can be queued for async flushing.
+const DefaultFlushQueueSize = 64
 
 // InsertBuffer batches log records and flushes them to DuckDB asynchronously.
 // Add() never blocks on DuckDB writes - records are sent to a flush goroutine.
@@ -31,8 +32,9 @@ type InsertBuffer struct {
 
 // InsertBufferConfig holds tunable parameters for the insert buffer.
 type InsertBufferConfig struct {
-	BatchSize     int
-	FlushInterval time.Duration
+	BatchSize      int
+	FlushInterval  time.Duration
+	FlushQueueSize int
 }
 
 // NewInsertBuffer creates a new insert buffer that flushes to the store.
@@ -40,6 +42,7 @@ type InsertBufferConfig struct {
 func NewInsertBuffer(store *Store, conf ...InsertBufferConfig) *InsertBuffer {
 	batchSize := 2000
 	flushInterval := 100 * time.Millisecond
+	flushQueueSize := DefaultFlushQueueSize
 	if len(conf) > 0 {
 		if conf[0].BatchSize > 0 {
 			batchSize = conf[0].BatchSize
@@ -47,12 +50,15 @@ func NewInsertBuffer(store *Store, conf ...InsertBufferConfig) *InsertBuffer {
 		if conf[0].FlushInterval > 0 {
 			flushInterval = conf[0].FlushInterval
 		}
+		if conf[0].FlushQueueSize > 0 {
+			flushQueueSize = conf[0].FlushQueueSize
+		}
 	}
 
 	b := &InsertBuffer{
 		store:         store,
 		pending:       make([]*LogRecord, 0, batchSize),
-		flushChan:     make(chan []*LogRecord, defaultFlushQueueSize),
+		flushChan:     make(chan []*LogRecord, flushQueueSize),
 		maxBatch:      batchSize,
 		flushInterval: flushInterval,
 		done:          make(chan struct{}),
@@ -167,6 +173,8 @@ func (b *InsertBuffer) Stop() {
 }
 
 // InsertLogBatch appends a batch of raw log records into DuckDB in a single transaction.
+// If any individual record fails to insert, the entire batch is rolled back and retried
+// record-by-record to salvage as many records as possible.
 func (s *Store) InsertLogBatch(records []*LogRecord) error {
 	if len(records) == 0 {
 		return nil
@@ -175,13 +183,38 @@ func (s *Store) InsertLogBatch(records []*LogRecord) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	err := s.insertBatchTx(records)
+	if err == nil {
+		return nil
+	}
+
+	// Batch failed — retry record-by-record to salvage what we can.
+	var failed int
+	for _, r := range records {
+		if rerr := s.insertBatchTx([]*LogRecord{r}); rerr != nil {
+			failed++
+			log.Printf("duckdb: dropping record (service=%s msg=%.80s): %v", r.Service, r.Message, rerr)
+		}
+	}
+	if failed > 0 {
+		log.Printf("duckdb: batch partially failed — %d/%d records dropped", failed, len(records))
+	}
+	return nil
+}
+
+// insertBatchTx inserts records in a single transaction.
+func (s *Store) insertBatchTx(records []*LogRecord) error {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	committed := false
+	defer func() {
+		if !committed {
+			tx.Rollback()
+		}
+	}()
 
-	// Prepare log insert statement
 	logStmt, err := tx.Prepare(`INSERT INTO logs (timestamp, orig_timestamp, level, level_num, message, raw_line, service, hostname, pid, attributes, source, app) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		return err
@@ -189,17 +222,16 @@ func (s *Store) InsertLogBatch(records []*LogRecord) error {
 	defer logStmt.Close()
 
 	for _, r := range records {
-		// Marshal attributes to JSON
 		attrsJSON := []byte("{}")
 		if len(r.Attributes) > 0 {
-			if data, err := json.Marshal(r.Attributes); err != nil {
-				log.Printf("duckdb: failed to marshal attributes: %v", err)
+			if data, merr := json.Marshal(r.Attributes); merr != nil {
+				log.Printf("duckdb: failed to marshal attributes, using empty: %v", merr)
 			} else {
 				attrsJSON = data
 			}
 		}
 
-		var origTS interface{}
+		var origTS any
 		if !r.OrigTimestamp.IsZero() {
 			origTS = r.OrigTimestamp
 		}
@@ -209,16 +241,18 @@ func (s *Store) InsertLogBatch(records []*LogRecord) error {
 			app = "default"
 		}
 
-		_, err := logStmt.Exec(
+		if _, err := logStmt.Exec(
 			r.Timestamp, origTS, r.Level, r.LevelNum,
 			r.Message, r.RawLine, r.Service, r.Hostname,
 			r.PID, string(attrsJSON), r.Source, app,
-		)
-		if err != nil {
-			log.Printf("duckdb insert error (individual record): %v", err)
-			continue
+		); err != nil {
+			return fmt.Errorf("record insert: %w", err)
 		}
 	}
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	committed = true
+	return nil
 }

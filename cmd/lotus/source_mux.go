@@ -5,6 +5,9 @@ import (
 	"sync"
 )
 
+// DefaultMuxBuffer is the default channel buffer size for the source multiplexer.
+const DefaultMuxBuffer = 50_000
+
 // SourceMultiplexer merges multiple log sources into a single read-only stream.
 type SourceMultiplexer struct {
 	ctx    context.Context
@@ -21,7 +24,7 @@ type SourceMultiplexer struct {
 
 func NewSourceMultiplexer(parent context.Context, sources []NamedLogSource, buffer int) *SourceMultiplexer {
 	if buffer <= 0 {
-		buffer = 50000
+		buffer = DefaultMuxBuffer
 	}
 	ctx, cancel := context.WithCancel(parent)
 	return &SourceMultiplexer{

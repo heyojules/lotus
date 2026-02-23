@@ -8,31 +8,52 @@ import (
 )
 
 const (
-	// lineChannelSize is the buffer size for the incoming log line channel.
-	lineChannelSize = 100_000
+	// DefaultLineChannelSize is the default buffer size for the incoming log line channel.
+	DefaultLineChannelSize = 100_000
+
+	// DefaultMaxLineSize is the default maximum size (in bytes) of a single log line.
+	DefaultMaxLineSize = 1024 * 1024 // 1MB
 )
+
+// ServerConfig holds tunable parameters for the TCP server.
+type ServerConfig struct {
+	LineChannelSize int
+	MaxLineSize     int
+}
 
 // Server listens for NDJSON log lines over TCP (e.g., from pino-socket).
 type Server struct {
-	listener net.Listener
-	addr     string
-	lineChan chan string
-	ctx      context.Context
-	cancel   context.CancelFunc
-	wg       sync.WaitGroup
+	listener    net.Listener
+	addr        string
+	lineChan    chan string
+	maxLineSize int
+	ctx         context.Context
+	cancel      context.CancelFunc
+	wg          sync.WaitGroup
 }
 
 // NewServer creates a new TCP server. Default addr is "0.0.0.0:4000".
-func NewServer(addr string) *Server {
+func NewServer(addr string, conf ...ServerConfig) *Server {
 	if addr == "" {
 		addr = "0.0.0.0:4000"
 	}
+	lineChannelSize := DefaultLineChannelSize
+	maxLineSize := DefaultMaxLineSize
+	if len(conf) > 0 {
+		if conf[0].LineChannelSize > 0 {
+			lineChannelSize = conf[0].LineChannelSize
+		}
+		if conf[0].MaxLineSize > 0 {
+			maxLineSize = conf[0].MaxLineSize
+		}
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Server{
-		addr:     addr,
-		lineChan: make(chan string, lineChannelSize),
-		ctx:      ctx,
-		cancel:   cancel,
+		addr:        addr,
+		lineChan:    make(chan string, lineChannelSize),
+		maxLineSize: maxLineSize,
+		ctx:         ctx,
+		cancel:      cancel,
 	}
 }
 
@@ -70,10 +91,8 @@ func (s *Server) handleConnection(conn net.Conn) {
 	defer conn.Close()
 
 	scanner := bufio.NewScanner(conn)
-	// Set large buffer (1MB) to handle long JSON lines
-	const maxScanTokenSize = 1024 * 1024
-	buf := make([]byte, maxScanTokenSize)
-	scanner.Buffer(buf, maxScanTokenSize)
+	buf := make([]byte, s.maxLineSize)
+	scanner.Buffer(buf, s.maxLineSize)
 
 	for scanner.Scan() {
 		line := scanner.Text()

@@ -16,6 +16,7 @@ const (
 	defaultQueryTimeout        = 30 * time.Second
 	defaultInsertBatchSize     = 2000
 	defaultInsertFlushInterval = 100 * time.Millisecond
+	defaultLogRetention        = 30 // days, 0 = disabled
 )
 
 // appConfig is internal runtime configuration.
@@ -39,4 +40,5 @@ type appConfig struct {
 	InsertBatchSize     int           `mapstructure:"insert-batch-size"`
 	InsertFlushInterval time.Duration `mapstructure:"insert-flush-interval"`
 	SocketPath          string        `mapstructure:"socket-path"`
+	LogRetention        int           `mapstructure:"log-retention"`
 }

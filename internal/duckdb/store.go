@@ -38,6 +38,10 @@ func NewStore(dbPath string, queryTimeout ...time.Duration) (*Store, error) {
 		return nil, err
 	}
 
+	// DuckDB is single-writer; limit pool to avoid contention.
+	db.SetMaxOpenConns(4)
+	db.SetMaxIdleConns(2)
+
 	if err := migrate.NewRunner(db).Run(); err != nil {
 		db.Close()
 		return nil, err
@@ -63,4 +67,17 @@ func (s *Store) Close() error {
 // DB returns the underlying *sql.DB for direct query access (e.g., AI queries).
 func (s *Store) DB() *sql.DB {
 	return s.db
+}
+
+// DeleteBefore deletes all log records with a timestamp before the given cutoff.
+// Returns the number of rows deleted.
+func (s *Store) DeleteBefore(cutoff time.Time) (int64, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	result, err := s.db.Exec("DELETE FROM logs WHERE timestamp < ?", cutoff)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

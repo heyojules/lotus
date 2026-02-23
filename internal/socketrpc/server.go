@@ -91,7 +91,9 @@ func (s *Server) acceptLoop() {
 				return
 			default:
 				log.Printf("socketrpc: accept error: %v", err)
-				return
+				// Continue on transient errors (e.g., fd limit) instead of
+				// killing the entire accept loop.
+				continue
 			}
 		}
 		s.wg.Add(1)

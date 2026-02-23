@@ -88,6 +88,7 @@ func loadConfig(configPath string) (appConfig, error) {
 	v.SetDefault("insert-batch-size", defaultInsertBatchSize)
 	v.SetDefault("insert-flush-interval", defaultInsertFlushInterval)
 	v.SetDefault("socket-path", socketrpc.DefaultSocketPath())
+	v.SetDefault("log-retention", defaultLogRetention)
 
 	if configPath != "" {
 		v.SetConfigFile(configPath)
