@@ -225,6 +225,15 @@ func printStartupBanner(cfg appConfig, hasSources bool) {
 	}
 
 	lines = append(lines, "")
+	lines = append(lines, bold.Render("    Config"))
+	lines = append(lines, "")
+	if cfg.ConfigPath != "" {
+		lines = append(lines, fmt.Sprintf("    %s  Config File    %s", check, dim.Render(shortenPath(cfg.ConfigPath))))
+	} else {
+		lines = append(lines, fmt.Sprintf("    %s  Config File    %s", dot, dim.Render("default (no file)")))
+	}
+
+	lines = append(lines, "")
 	lines = append(lines, separator)
 	lines = append(lines, "")
 	lines = append(lines, "    "+dim.Render("Press ")+yellow.Render("Ctrl+C")+dim.Render(" to stop"))

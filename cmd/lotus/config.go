@@ -41,4 +41,5 @@ type appConfig struct {
 	InsertFlushInterval time.Duration `mapstructure:"insert-flush-interval"`
 	SocketPath          string        `mapstructure:"socket-path"`
 	LogRetention        int           `mapstructure:"log-retention"`
+	ConfigPath          string        `mapstructure:"-"` // not from config file
 }

@@ -17,7 +17,7 @@ func (m *mockQuerier) TotalLogBytes(opts model.QueryOpts) (int64, error)   { ret
 func (m *mockQuerier) SeverityCounts(opts model.QueryOpts) (map[string]int64, error) {
 	return map[string]int64{"INFO": 10, "ERROR": 2}, nil
 }
-func (m *mockQuerier) SeverityCountsByMinute(window time.Duration, opts model.QueryOpts) ([]model.MinuteCounts, error) {
+func (m *mockQuerier) SeverityCountsByMinute(opts model.QueryOpts) ([]model.MinuteCounts, error) {
 	return []model.MinuteCounts{{Minute: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC), Info: 5, Total: 5}}, nil
 }
 func (m *mockQuerier) TopWords(limit int, opts model.QueryOpts) ([]model.WordCount, error) {
@@ -150,7 +150,7 @@ func TestRoundtrip(t *testing.T) {
 	})
 
 	t.Run("SeverityCountsByMinute", func(t *testing.T) {
-		minutes, err := client.SeverityCountsByMinute(time.Hour, opts)
+		minutes, err := client.SeverityCountsByMinute(opts)
 		if err != nil {
 			t.Fatal(err)
 		}

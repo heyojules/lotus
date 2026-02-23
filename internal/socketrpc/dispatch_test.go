@@ -28,7 +28,7 @@ func (q *stubQuerier) AttributeKeyValues(key string, limit int) (map[string]int6
 func (q *stubQuerier) SeverityCounts(opts model.QueryOpts) (map[string]int64, error) {
 	return map[string]int64{"INFO": 50, "ERROR": 10}, nil
 }
-func (q *stubQuerier) SeverityCountsByMinute(window time.Duration, opts model.QueryOpts) ([]model.MinuteCounts, error) {
+func (q *stubQuerier) SeverityCountsByMinute(opts model.QueryOpts) ([]model.MinuteCounts, error) {
 	return []model.MinuteCounts{{Minute: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC), Info: 5, Total: 5}}, nil
 }
 func (q *stubQuerier) TopHosts(limit int, opts model.QueryOpts) ([]model.DimensionCount, error) {
@@ -69,7 +69,7 @@ func TestDispatch_AllMethods(t *testing.T) {
 		{"TopAttributeKeys", `{"Limit":10,"Opts":{}}`},
 		{"AttributeKeyValues", `{"Key":"env","Limit":10}`},
 		{"SeverityCounts", `{"Opts":{}}`},
-		{"SeverityCountsByMinute", `{"Window":3600000000000,"Opts":{}}`},
+		{"SeverityCountsByMinute", `{"Opts":{}}`},
 		{"TopHosts", `{"Limit":10,"Opts":{}}`},
 		{"TopServices", `{"Limit":10,"Opts":{}}`},
 		{"TopServicesBySeverity", `{"Severity":"ERROR","Limit":10,"Opts":{}}`},

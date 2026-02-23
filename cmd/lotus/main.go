@@ -107,6 +107,7 @@ func loadConfig(configPath string) (appConfig, error) {
 	if err := v.Unmarshal(&cfg); err != nil {
 		return cfg, err
 	}
+	cfg.ConfigPath = v.ConfigFileUsed()
 	if cfg.TCPPort <= 0 || cfg.TCPPort > 65535 {
 		return cfg, fmt.Errorf("invalid tcp-port: %d", cfg.TCPPort)
 	}
