@@ -20,19 +20,6 @@
 
 > *"Imperative for human, declarative for agent"*
 
-## This exist because
-
-- **You shouldn't need motivation to set up persistant logging.** Drop a binary, pipe your output, done.
-- **Agents should fix your bugs, not you.** Lotus is a tiny data warehouse that AI agents can query autonomously to find and fix problems while you focus on things that truly matter.
-- **Instant TUI mount and search.** Need a specific log? Connect and query. No dashboards to configure, no pipelines to deploy, no complexity standing between you and your data.
-
-
-**Observation categories**
-
-- [x] Logs
-- [ ] Metrics
-- [ ] Analytics
-
 ## What is Lotus?
 
 Lotus is a unified observability tool built for AI agents from first principles. It's a headless service that takes in data from TCP streams or stdin, stores everything in DuckDB, and gives you a **read-only HTTP API** to work with. Agents query live and retained data through a thin query layer, no SDKs, no client libraries, no abstractions getting in the way.
@@ -46,6 +33,19 @@ There's also a **TUI client** (`lotus-cli`) that connects to the running service
 - **AI agent first** &mdash; the HTTP API is the primary read surface, designed for programmatic access
 - **Easily extendable** &mdash; thin application layer makes it straightforward to add new inputs or read surfaces
 - **DuckDB is the single source of truth** &mdash; all state derives from SQL queries, no in-memory caches or secondary stores
+
+## This exist because
+
+- **You shouldn't need motivation to set up persistant logging.** Drop a binary, pipe your output, done.
+- **Agents should fix your bugs, not you.** Lotus is a tiny data warehouse that AI agents can query autonomously to find and fix problems while you focus on things that truly matter.
+- **Instant TUI mount and search.** Need a specific log? Connect and query. No dashboards to configure, no pipelines to deploy, no complexity standing between you and your data.
+
+
+**Observation categories**
+
+- [x] Logs
+- [ ] Metrics
+- [ ] Analytics
 
 ## Architecture
 
