@@ -41,6 +41,10 @@ flowchart LR
 - [Read Surface](./read-surface.md)
 - [Interface Contracts](./interfaces.md)
 
+## Operations
+
+- [Durable Local Forwarding With rsyslog](../operations/rsyslog-forwarder.md)
+
 ## Decision Rule
 
 For architecture changes, apply this filter:

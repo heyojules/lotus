@@ -66,6 +66,7 @@ More detailed layer docs and interface contracts:
 
 - `docs/layers/README.md`
 - `docs/layers/interfaces.md`
+- `docs/operations/rsyslog-forwarder.md`
 
 ## Ingest Topologies
 
@@ -110,6 +111,27 @@ Then send newline-delimited logs/NDJSON to `<lotus-host>:4000`.
 
 > [!NOTE]
 > TCP ingest currently has no built-in TLS/auth. Expose it only on trusted networks or behind a secure tunnel/proxy.
+
+## Production Durable Forwarding (Recommended)
+
+For production, use `rsyslog` as a local durable forwarder and avoid direct `app | lotus` pipelines.
+
+Why:
+
+- Pipe chains are not durable across Lotus restarts/redeploys.
+- `rsyslog` supports disk-backed action queues and retry-until-recovered delivery.
+- You keep a simple local topology (`journald -> rsyslog -> lotus tcp:4000`) without introducing brokers.
+
+Quick start:
+
+1. Copy [`configs/rsyslog/lotus-local-forwarder.conf`](configs/rsyslog/lotus-local-forwarder.conf) to `/etc/rsyslog.d/20-lotus-forwarder.conf`.
+2. Ensure Lotus listens on localhost TCP `:4000`.
+3. Restart `rsyslog`.
+4. Validate ingress with `logger -t lotus-test "hello from rsyslog"` and confirm it appears in Lotus.
+
+Full setup, failure drill, and monitoring checklist:
+
+- [`docs/operations/rsyslog-forwarder.md`](docs/operations/rsyslog-forwarder.md)
 
 ## Reliability and Tuning
 

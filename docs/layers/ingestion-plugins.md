@@ -43,6 +43,11 @@ Operational default:
 - `stdin` ingest activates automatically when Lotus receives piped input.
 - For remote-machine senders, bind TCP to a reachable address using `host` (or `tcp-addr`), for example `0.0.0.0:4000`.
 
+Production durability note:
+
+- Prefer `journald -> rsyslog (disk queue) -> lotus tcp:4000` over direct `app | lotus`.
+- See `docs/operations/rsyslog-forwarder.md` for the reference setup.
+
 ## Why It Is Decoupled
 
 - Input format details (TCP, stdin) are isolated from parsing/storage.

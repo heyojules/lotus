@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/control-theory/lotus/internal/ingest"
 	"github.com/control-theory/lotus/internal/model"
 )
 
@@ -88,5 +89,117 @@ func TestSourceMultiplexer_StopInvokesSourceStop(t *testing.T) {
 	case <-src.stopped:
 	case <-time.After(2 * time.Second):
 		t.Fatal("expected source Stop() to be called")
+	}
+}
+
+type integrationSink struct {
+	records []*model.LogRecord
+}
+
+func (s *integrationSink) Add(record *model.LogRecord) {
+	s.records = append(s.records, record)
+}
+
+func TestPipelineIntegration_ParseMode_MultiSourceFlow(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	tcp := newFakeSource("tcp-source", 4)
+	stdin := newFakeSource("stdin-source", 4)
+
+	mux := NewSourceMultiplexer(ctx, []NamedLogSource{tcp, stdin}, 16)
+	mux.Start()
+	defer mux.Stop()
+
+	sink := &integrationSink{}
+	processor, err := ingest.NewEnvelopeProcessor(ingest.ProcessorModeParse, sink, "")
+	if err != nil {
+		t.Fatalf("NewEnvelopeProcessor(parse): %v", err)
+	}
+
+	tcp.lines <- model.IngestEnvelope{
+		Source: "tcp",
+		Line:   `{"level":30,"msg":"json from tcp","service":"payments"}`,
+	}
+	stdin.lines <- model.IngestEnvelope{
+		Source: "stdin",
+		Line:   "ERROR: plain text from stdin",
+	}
+	tcp.Stop()
+	stdin.Stop()
+
+	for env := range mux.Lines() {
+		processor.ProcessEnvelope(env)
+	}
+
+	if len(sink.records) != 2 {
+		t.Fatalf("records = %d, want 2", len(sink.records))
+	}
+
+	bySource := map[string]*model.LogRecord{}
+	for _, rec := range sink.records {
+		bySource[rec.Source] = rec
+	}
+
+	tcpRecord := bySource["tcp"]
+	if tcpRecord == nil {
+		t.Fatal("missing tcp record")
+	}
+	if tcpRecord.Message != "json from tcp" {
+		t.Fatalf("tcp message = %q, want %q", tcpRecord.Message, "json from tcp")
+	}
+	if tcpRecord.Service != "payments" {
+		t.Fatalf("tcp service = %q, want %q", tcpRecord.Service, "payments")
+	}
+
+	stdinRecord := bySource["stdin"]
+	if stdinRecord == nil {
+		t.Fatal("missing stdin record")
+	}
+	if stdinRecord.Level != "ERROR" {
+		t.Fatalf("stdin level = %q, want %q", stdinRecord.Level, "ERROR")
+	}
+}
+
+func TestPipelineIntegration_PassthroughMode_SkipsJSONNormalization(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	src := newFakeSource("tcp-source", 2)
+	mux := NewSourceMultiplexer(ctx, []NamedLogSource{src}, 8)
+	mux.Start()
+	defer mux.Stop()
+
+	sink := &integrationSink{}
+	processor, err := ingest.NewEnvelopeProcessor(ingest.ProcessorModePassthrough, sink, "")
+	if err != nil {
+		t.Fatalf("NewEnvelopeProcessor(passthrough): %v", err)
+	}
+
+	raw := `{"level":30,"msg":"json message","service":"orders"}`
+	src.lines <- model.IngestEnvelope{Source: "tcp", Line: raw}
+	src.Stop()
+
+	for env := range mux.Lines() {
+		processor.ProcessEnvelope(env)
+	}
+
+	if len(sink.records) != 1 {
+		t.Fatalf("records = %d, want 1", len(sink.records))
+	}
+	rec := sink.records[0]
+
+	if rec.Source != "tcp" {
+		t.Fatalf("source = %q, want %q", rec.Source, "tcp")
+	}
+	if rec.Message != raw {
+		t.Fatalf("message = %q, want raw line %q", rec.Message, raw)
+	}
+	if rec.Service != "" {
+		t.Fatalf("service = %q, want empty (passthrough skips service normalization)", rec.Service)
 	}
 }
