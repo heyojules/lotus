@@ -3,7 +3,7 @@
 </p>
 
 <h1 align="center">Lotus</h1>
-<p align="center"><strong>Tiny, standards-based telemetry tool for agents, built from first principles</strong></p>
+<p align="center"><strong>Tiny, standards-based telemetry tool, built from first principles</strong></p>
 
 <p align="center">
   <em>"Imperative for user, declarative for agent."</em>
