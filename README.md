@@ -14,13 +14,9 @@
 
 ## Why Lotus exists
 
-Product development moves fastest when technical and product surfaces are unified — when the person building the feature can also see what's happening in production, without context-switching into a separate observability stack or waiting on someone else to set it up.
+Lotus is a thin observability layer that ingests logs, stores them in DuckDB, and exposes a read-only HTTP API queryable by AI agents and scripts. A TUI dashboard (`lotus-tui`) is included for humans.
 
-Lotus is a thin observation layer that closes this gap. It takes in OpenTelemetry (OTEL) log data over TCP streams or stdin, stores everything in DuckDB, and exposes a read-only HTTP API that AI agents and scripts can query directly. There's also a TUI client (`lotus-tui`) for when a human wants a terminal dashboard.
-
-The fewer people and tools standing between "ship it" and "see what happened," the faster you iterate. That's the whole point.
-
-Lotus follows a strict minimal mindset: use only what you need, and nothing else.
+Ship it, see what happened — no context-switching, no separate stack, no setup friction.
 
 **Design principles:**
 
