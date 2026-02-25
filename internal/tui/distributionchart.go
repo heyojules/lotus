@@ -12,12 +12,19 @@ import (
 
 // PatternsChartPanel displays drain3 log patterns.
 type PatternsChartPanel struct {
-	dashboard *DashboardModel // kept for drain3Manager access
+	drain3Manager *Drain3Manager
+	pushModalCmd  tea.Cmd
 }
 
 // NewPatternsChartPanel creates a new patterns chart panel.
 func NewPatternsChartPanel(m *DashboardModel) *PatternsChartPanel {
-	return &PatternsChartPanel{dashboard: m}
+	return &PatternsChartPanel{
+		drain3Manager: m.drain3Manager,
+		pushModalCmd: func() tea.Msg {
+			modal := NewPatternsModal(m)
+			return ActionMsg{Action: ActionPushModal, Payload: modal}
+		},
+	}
 }
 
 func (p *PatternsChartPanel) ID() string    { return "patterns" }
@@ -42,8 +49,8 @@ func (p *PatternsChartPanel) Render(_ ViewContext, width, height int, active boo
 	}
 
 	patternCount, totalLogs := 0, 0
-	if p.dashboard.drain3Manager != nil {
-		patternCount, totalLogs = p.dashboard.drain3Manager.GetStats()
+	if p.drain3Manager != nil {
+		patternCount, totalLogs = p.drain3Manager.GetStats()
 	}
 
 	titleText := "Log Patterns"
@@ -53,7 +60,7 @@ func (p *PatternsChartPanel) Render(_ ViewContext, width, height int, active boo
 	title := chartTitleStyle.Render(titleText)
 
 	var content string
-	if p.dashboard.drain3Manager != nil && patternCount > 0 {
+	if p.drain3Manager != nil && patternCount > 0 {
 		content = p.renderContent(width)
 	} else {
 		content = helpStyle.Render("Extracting patterns")
@@ -63,19 +70,18 @@ func (p *PatternsChartPanel) Render(_ ViewContext, width, height int, active boo
 }
 
 func (p *PatternsChartPanel) OnSelect(_ ViewContext, _ int) tea.Cmd {
-	if p.dashboard.drain3Manager != nil {
-		modal := NewPatternsModal(p.dashboard)
-		return actionMsg(ActionMsg{Action: ActionPushModal, Payload: modal})
+	if p.drain3Manager != nil && p.pushModalCmd != nil {
+		return p.pushModalCmd
 	}
 	return nil
 }
 
 func (p *PatternsChartPanel) renderContent(chartWidth int) string {
-	if p.dashboard.drain3Manager == nil {
+	if p.drain3Manager == nil {
 		return helpStyle.Render("Pattern extraction not available")
 	}
 
-	patterns := p.dashboard.drain3Manager.GetTopPatterns(8)
+	patterns := p.drain3Manager.GetTopPatterns(8)
 
 	maxCount := 0
 	for _, pat := range patterns {

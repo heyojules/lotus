@@ -55,7 +55,12 @@ func (m *DashboardModel) renderStatusLine() string {
 	switch m.activeSection {
 	case SectionCharts:
 		if m.activePanelIdx < len(m.panels) {
-			sectionName = m.panels[m.activePanelIdx].Title()
+			page := m.currentPageTitle()
+			if page != "" {
+				sectionName = fmt.Sprintf("%s/%s", page, m.panels[m.activePanelIdx].Title())
+			} else {
+				sectionName = m.panels[m.activePanelIdx].Title()
+			}
 		}
 	case SectionLogs:
 		sectionName = "Logs"
@@ -92,9 +97,9 @@ func (m *DashboardModel) renderStatusLine() string {
 		} else if narrow {
 			statusText = "?: Help • ↑↓ Navigate • Enter: Details"
 		} else if medium {
-			statusText = "?: Help • ↑↓: Navigate • Home/End • PgUp/Dn • Enter: Details"
+			statusText = "?: Help • ↑↓: Navigate • Home/End • PgUp/Dn • Enter: Details • []: Page"
 		} else {
-			statusText = "?: Help • Wheel: scroll • ↑↓: Navigate • Home: Top • End: Latest • PgUp/PgDn: Page • Enter: Details"
+			statusText = "?: Help • Wheel: scroll • ↑↓: Navigate • Home: Top • End: Latest • PgUp/PgDn: Page • []: Switch page • Enter: Details"
 		}
 	} else if m.HasModal() {
 		statusText = "ESC: Close"
@@ -103,11 +108,11 @@ func (m *DashboardModel) renderStatusLine() string {
 		if veryNarrow {
 			statusText = "Tab • Space • i • ? • q"
 		} else if narrow {
-			statusText = "?: Help • Tab: Nav • Space: Pause • i: Stats • q: Quit"
+			statusText = "?: Help • Tab: Nav • []: Page • Space: Pause • q: Quit"
 		} else if medium {
-			statusText = "Tab: Navigate • Space: Pause • i: Stats • Enter: Select • q: Quit"
+			statusText = "Tab: Navigate • []: Switch Page • Space: Pause • i: Stats • Enter: Select • q: Quit"
 		} else {
-			statusText = "?: Help • Click sections • Wheel: scroll • Space: Pause • Tab: Navigate • i: Stats • Enter: Select • q: Quit"
+			statusText = "?: Help • Click sections • Wheel: scroll • []: Switch page • Space: Pause • Tab: Navigate • i: Stats • Enter: Select • q: Quit"
 		}
 	}
 

@@ -12,37 +12,33 @@ import (
 
 // AttributesChartPanel displays the most frequent attribute keys.
 type AttributesChartPanel struct {
-	dashboard *DashboardModel // kept for formatAttributeValuesModal; TODO: extract
-	data      []AttributeEntry
+	store          model.LogQuerier
+	formatModal    func(entry *AttributeEntry, maxWidth int) string
+	pushContentCmd func(content string) tea.Cmd
+	data           []AttributeEntry
 }
 
 // NewAttributesChartPanel creates a new attributes chart panel.
 func NewAttributesChartPanel(m *DashboardModel) *AttributesChartPanel {
-	return &AttributesChartPanel{dashboard: m}
+	return &AttributesChartPanel{
+		store:       m.store,
+		formatModal: m.formatAttributeValuesModal,
+		pushContentCmd: func(content string) tea.Cmd {
+			modal := NewDetailModalWithContent(m, content)
+			return actionMsg(ActionMsg{Action: ActionPushModal, Payload: modal})
+		},
+	}
 }
 
 func (p *AttributesChartPanel) ID() string    { return "attributes" }
 func (p *AttributesChartPanel) Title() string { return "Attrs" }
 
-func (p *AttributesChartPanel) Refresh(store model.LogQuerier, opts model.QueryOpts) {
-	if store == nil {
-		return
-	}
-	attrKeys, err := store.TopAttributeKeys(20, opts)
-	if err != nil {
-		return
-	}
-	entries := make([]AttributeEntry, len(attrKeys))
-	for i, ak := range attrKeys {
-		values, _ := store.AttributeKeyValues(ak.Key, 100)
-		entries[i] = AttributeEntry{
-			Key:              ak.Key,
-			UniqueValueCount: ak.UniqueValues,
-			TotalCount:       ak.TotalCount,
-			Values:           values,
-		}
-	}
-	p.data = entries
+func (p *AttributesChartPanel) Refresh(_ model.LogQuerier, _ model.QueryOpts) {
+	// no-op: data is pushed from async tick results
+}
+
+func (p *AttributesChartPanel) SetData(entries []AttributeEntry) {
+	p.data = append([]AttributeEntry(nil), entries...)
 }
 
 func (p *AttributesChartPanel) ContentLines(ctx ViewContext) int {
@@ -84,14 +80,22 @@ func (p *AttributesChartPanel) Render(ctx ViewContext, width, height int, active
 
 func (p *AttributesChartPanel) OnSelect(ctx ViewContext, selIdx int) tea.Cmd {
 	if selIdx < len(p.data) {
-		entry := &p.data[selIdx]
+		if p.formatModal == nil || p.pushContentCmd == nil {
+			return nil
+		}
+		entry := p.data[selIdx]
+		// Fetch heavy value distribution on demand to avoid N+1 queries on each tick.
+		if p.store != nil {
+			if values, err := p.store.AttributeKeyValues(entry.Key, 100); err == nil {
+				entry.Values = values
+			}
+		}
 		contentWidth := ctx.ContentWidth - 16
 		if contentWidth < 60 {
 			contentWidth = 60
 		}
-		content := p.dashboard.formatAttributeValuesModal(entry, contentWidth)
-		modal := NewDetailModalWithContent(p.dashboard, content)
-		return actionMsg(ActionMsg{Action: ActionPushModal, Payload: modal})
+		content := p.formatModal(&entry, contentWidth)
+		return p.pushContentCmd(content)
 	}
 	return nil
 }

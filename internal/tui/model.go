@@ -72,11 +72,10 @@ type FilterState struct {
 
 // SidebarState holds app sidebar state.
 type SidebarState struct {
-	selectedApp    string           // "" = all apps (global view)
-	appList        []string         // from store.ListApps(), refreshed on tick
-	appListIdx     int              // sidebar selection index (0 = "All")
-	sidebarVisible bool             // toggled with 'a'
-	appCounts      map[string]int64 // per-app log counts, refreshed on tick (not render)
+	selectedApp    string   // "" = all apps (global view)
+	appList        []string // from store.ListApps(), refreshed on tick
+	sidebarCursor  int      // unified sidebar cursor (pages + apps)
+	sidebarVisible bool     // toggled with 'a'
 }
 
 // ModalStackState holds the modal stack that replaces boolean flag explosion.
@@ -90,16 +89,34 @@ type NavigationState struct {
 	activePanelIdx int
 	panels         []ChartPanel
 	panelSelIdx    []int
+	deckPages      []DeckPageState
+	activePageIdx  int
+}
+
+// DeckPageState represents one right-side page composed of independent decks.
+type DeckPageState struct {
+	ID             string
+	Title          string
+	Panels         []ChartPanel
+	PanelSelIdx    []int
+	ActivePanelIdx int
+}
+
+// DeckPageSpec defines how to build a page and its decks.
+type DeckPageSpec struct {
+	ID    string
+	Title string
+	Build func(m *DashboardModel) []ChartPanel
 }
 
 // LogViewState holds log entries and scroll/selection state.
 type LogViewState struct {
 	logEntries               []model.LogRecord // Filtered view for display (refreshed from DuckDB)
-	selectedLogIndex         int        // For log section navigation
-	viewPaused               bool       // Pause view updates when navigating logs
-	logAutoScroll            bool       // Auto-scroll to latest logs in log viewer
-	instructionsScrollOffset int        // Scroll position for instructions/filter status screen
-	showColumns              bool       // Toggle Host and Service columns in log view
+	selectedLogIndex         int               // For log section navigation
+	viewPaused               bool              // Pause view updates when navigating logs
+	logAutoScroll            bool              // Auto-scroll to latest logs in log viewer
+	instructionsScrollOffset int               // Scroll position for instructions/filter status screen
+	showColumns              bool              // Toggle Host and Service columns in log view
 }
 
 // DashboardModel represents the main TUI model.
@@ -138,6 +155,9 @@ type DashboardModel struct {
 
 	// Statistics tracking
 	stats StatsTracker
+
+	// Async tick query guard to avoid overlapping DB fetches.
+	tickInFlight bool
 
 	// Inline handlers for filter/search input (NOT modals — part of dashboard layout)
 	inlineHandlers []inlineHandlerEntry
@@ -242,14 +262,7 @@ func NewDashboardModel(maxLogBuffer int, updateInterval time.Duration, reverseSc
 		dataSource: dataSource,
 	}
 
-	defaultPanels := []ChartPanel{
-		NewWordsChartPanel(),
-		NewAttributesChartPanel(m),
-		NewPatternsChartPanel(m),
-		NewCountsChartPanel(m),
-	}
-
-	m.SetPanels(defaultPanels)
+	m.SetDeckPages(DefaultDeckPageSpecs())
 
 	// Register inline handlers for filter/search input (NOT modals).
 	m.inlineHandlers = []inlineHandlerEntry{
@@ -266,6 +279,7 @@ func (m *DashboardModel) SetPanels(panels []ChartPanel) {
 		m.panels = nil
 		m.panelSelIdx = nil
 		m.activePanelIdx = 0
+		m.persistActivePageState()
 		return
 	}
 
@@ -274,6 +288,142 @@ func (m *DashboardModel) SetPanels(panels []ChartPanel) {
 	if m.activePanelIdx >= len(m.panels) {
 		m.activePanelIdx = 0
 	}
+	m.persistActivePageState()
+}
+
+// SetDeckPages configures right-side pages and activates the first one.
+func (m *DashboardModel) SetDeckPages(specs []DeckPageSpec) {
+	pages := make([]DeckPageState, 0, len(specs))
+	for _, spec := range specs {
+		if spec.Build == nil {
+			continue
+		}
+		panels := spec.Build(m)
+		state := DeckPageState{
+			ID:             spec.ID,
+			Title:          spec.Title,
+			Panels:         append([]ChartPanel(nil), panels...),
+			PanelSelIdx:    make([]int, len(panels)),
+			ActivePanelIdx: 0,
+		}
+		pages = append(pages, state)
+	}
+
+	if len(pages) == 0 {
+		m.deckPages = nil
+		m.panels = nil
+		m.panelSelIdx = nil
+		m.activePanelIdx = 0
+		m.activePageIdx = 0
+		m.sidebarCursor = 0
+		return
+	}
+
+	m.deckPages = pages
+	m.activePageIdx = -1
+	m.sidebarCursor = 0
+	m.activatePage(0)
+}
+
+// DefaultDeckPageSpecs declares built-in pages and their decks.
+func DefaultDeckPageSpecs() []DeckPageSpec {
+	return []DeckPageSpec{
+		{
+			ID:    "overview",
+			Title: "Overview",
+			Build: func(m *DashboardModel) []ChartPanel {
+				return []ChartPanel{
+					NewWordsChartPanel(),
+					NewAttributesChartPanel(m),
+					NewPatternsChartPanel(m),
+					NewCountsChartPanel(m),
+				}
+			},
+		},
+		{
+			ID:    "patterns",
+			Title: "Patterns",
+			Build: func(m *DashboardModel) []ChartPanel {
+				return []ChartPanel{
+					NewPatternsChartPanel(m),
+					NewCountsChartPanel(m),
+					NewWordsChartPanel(),
+				}
+			},
+		},
+		{
+			ID:    "attributes",
+			Title: "Attributes",
+			Build: func(m *DashboardModel) []ChartPanel {
+				return []ChartPanel{
+					NewAttributesChartPanel(m),
+					NewWordsChartPanel(),
+					NewCountsChartPanel(m),
+				}
+			},
+		},
+	}
+}
+
+func (m *DashboardModel) persistActivePageState() {
+	if len(m.deckPages) == 0 || m.activePageIdx < 0 || m.activePageIdx >= len(m.deckPages) {
+		return
+	}
+
+	page := &m.deckPages[m.activePageIdx]
+	page.Panels = append([]ChartPanel(nil), m.panels...)
+	page.PanelSelIdx = append([]int(nil), m.panelSelIdx...)
+	page.ActivePanelIdx = m.activePanelIdx
+}
+
+func (m *DashboardModel) activatePage(idx int) {
+	if len(m.deckPages) == 0 || idx < 0 || idx >= len(m.deckPages) {
+		return
+	}
+
+	if idx != m.activePageIdx || len(m.panels) > 0 || len(m.panelSelIdx) > 0 {
+		m.persistActivePageState()
+	}
+	m.activePageIdx = idx
+
+	page := &m.deckPages[m.activePageIdx]
+	if len(page.PanelSelIdx) != len(page.Panels) {
+		page.PanelSelIdx = make([]int, len(page.Panels))
+	}
+
+	m.panels = append([]ChartPanel(nil), page.Panels...)
+	m.panelSelIdx = append([]int(nil), page.PanelSelIdx...)
+
+	if len(m.panels) == 0 {
+		m.activePanelIdx = 0
+		return
+	}
+
+	if page.ActivePanelIdx < 0 || page.ActivePanelIdx >= len(m.panels) {
+		page.ActivePanelIdx = 0
+	}
+	m.activePanelIdx = page.ActivePanelIdx
+}
+
+func (m *DashboardModel) nextPage() {
+	if len(m.deckPages) <= 1 {
+		return
+	}
+	m.activatePage((m.activePageIdx + 1) % len(m.deckPages))
+}
+
+func (m *DashboardModel) prevPage() {
+	if len(m.deckPages) <= 1 {
+		return
+	}
+	m.activatePage((m.activePageIdx - 1 + len(m.deckPages)) % len(m.deckPages))
+}
+
+func (m *DashboardModel) currentPageTitle() string {
+	if len(m.deckPages) == 0 || m.activePageIdx < 0 || m.activePageIdx >= len(m.deckPages) {
+		return ""
+	}
+	return m.deckPages[m.activePageIdx].Title
 }
 
 // queryOpts returns the current QueryOpts based on selected app.
@@ -291,7 +441,6 @@ func (m *DashboardModel) viewContext() ViewContext {
 		UseLogTime:    m.useLogTime,
 	}
 }
-
 
 // DashboardPage adapts DashboardModel to the Page interface.
 type DashboardPage struct {
@@ -339,7 +488,6 @@ func (m *DashboardModel) hasK8sAttributes() bool {
 	}
 	return false
 }
-
 
 // Init initializes the model
 func (m *DashboardModel) Init() tea.Cmd {

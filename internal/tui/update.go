@@ -8,6 +8,24 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+type tickDataLoadedMsg struct {
+	totalCount      int64
+	hasTotalCount   bool
+	appList         []string
+	hasAppList      bool
+	countsHistory   []SeverityCounts
+	hasCounts       bool
+	words           []model.WordCount
+	hasWords        bool
+	attributes      []AttributeEntry
+	hasAttributes   bool
+	logEntries      []model.LogRecord
+	hasLogEntries   bool
+	drain3Records   []model.LogRecord
+	drain3Processed int
+	hasDrain3       bool
+}
+
 // Update handles messages
 func (m *DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
@@ -59,58 +77,40 @@ func (m *DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			})
 		}
 
-		// Fetch total log count ONCE per tick — shared by stats, drain3, and sidebar
-		var totalCount int64
-		if m.store != nil {
-			if v, err := m.store.TotalLogCount(m.queryOpts()); err == nil {
-				totalCount = v
-			}
+		if m.tickInFlight {
+			return m, tea.Tick(m.updateInterval, func(t time.Time) tea.Msg {
+				return TickMsg(t)
+			})
 		}
+		m.tickInFlight = true
 
-		// Update processing rate statistics using the shared total count
-		m.updateProcessingRateStats(totalCount)
-
-		// Refresh app list and per-app counts from DuckDB
-		if m.store != nil {
-			if apps, err := m.store.ListApps(); err == nil {
-				m.appList = apps
-			}
-			// Cache per-app counts (replaces map entirely each tick)
-			counts := make(map[string]int64, len(m.appList))
-			for _, app := range m.appList {
-				if c, err := m.store.TotalLogCount(model.QueryOpts{App: app}); err == nil {
-					counts[app] = c
-				}
-			}
-			m.appCounts = counts
-
-			m.refreshCountsHistoryFromStore()
+		opts := m.queryOpts()
+		severityLevels := m.activeSeverityLevels()
+		var messagePattern string
+		if m.filterRegex != nil {
+			messagePattern = m.filterRegex.String()
 		}
+		logLimit := m.visibleLogLines()
+		drainFrom := m.drain3LastProcessed
 
+		// Continue periodic ticks
+		return m, tea.Batch(
+			m.fetchTickDataCmd(opts, severityLevels, messagePattern, logLimit, drainFrom),
+			tea.Tick(m.updateInterval, func(t time.Time) tea.Msg {
+				return TickMsg(t)
+			}),
+		)
+
+	case tickDataLoadedMsg:
+		m.tickInFlight = false
+		m.applyTickData(msg)
 		// Visibility-aware refresh: only refresh modal data when it's visible.
 		if modal := m.TopModal(); modal != nil {
 			if r, ok := modal.(Refreshable); ok {
 				r.Refresh()
 			}
 		}
-
-		// Feed drain3 incrementally from DuckDB
-		if m.store != nil && m.drain3Manager != nil {
-			m.feedDrain3Incremental(totalCount)
-		}
-
-		// Refresh chart panel data
-		opts := m.queryOpts()
-		for _, panel := range m.panels {
-			panel.Refresh(m.store, opts)
-		}
-
-		m.refreshLogEntriesFromStore()
-
-		// Continue periodic ticks
-		return m, tea.Tick(m.updateInterval, func(t time.Time) tea.Msg {
-			return TickMsg(t)
-		})
+		return m, nil
 
 	}
 
@@ -169,7 +169,6 @@ func (m *DashboardModel) handleMouseEvent(msg tea.MouseMsg) (tea.Model, tea.Cmd)
 	return m, nil
 }
 
-
 // handleMouseClick processes mouse clicks to switch between sections
 func (m *DashboardModel) handleMouseClick(x, y int) (tea.Model, tea.Cmd) {
 	if m.width <= 0 || m.height <= 0 {
@@ -180,24 +179,10 @@ func (m *DashboardModel) handleMouseClick(x, y int) (tea.Model, tea.Cmd) {
 		if x < sidebarWidth {
 			m.activeSection = SectionSidebar
 
-			// Sidebar rows: 0 title, 1 blank, 2 "All", then apps.
-			if y >= 2 {
-				idx := y - 2
-				if idx < 0 {
-					idx = 0
-				}
-				maxIdx := len(m.appList)
-				if idx > maxIdx {
-					idx = maxIdx
-				}
-				m.appListIdx = idx
-
-				// Apply app selection on click
-				if m.appListIdx == 0 {
-					m.selectedApp = "" // "All"
-				} else if m.appListIdx-1 < len(m.appList) {
-					m.selectedApp = m.appList[m.appListIdx-1]
-				}
+			// Sidebar rows are mixed pages + apps; resolve click via rendered rows.
+			if idx, ok := m.sidebarCursorAtMouseRow(y); ok {
+				m.sidebarCursor = idx
+				m.activateSidebarCursor()
 			}
 			return m, nil
 		}
@@ -241,18 +226,7 @@ func (m *DashboardModel) handleMouseClick(x, y int) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-
-// refreshCountsHistoryFromStore rebuilds the counts history from DuckDB minute buckets.
-func (m *DashboardModel) refreshCountsHistoryFromStore() {
-	if m.store == nil {
-		return
-	}
-
-	rows, err := m.store.SeverityCountsByMinute(m.queryOpts())
-	if err != nil {
-		return
-	}
-
+func minuteCountsToSeverity(rows []model.MinuteCounts) []SeverityCounts {
 	history := make([]SeverityCounts, 0, len(rows))
 	for _, row := range rows {
 		history = append(history, SeverityCounts{
@@ -265,7 +239,7 @@ func (m *DashboardModel) refreshCountsHistoryFromStore() {
 			Total: int(row.Total),
 		})
 	}
-	m.countsHistory = history
+	return history
 }
 
 // activeSeverityLevels returns the list of enabled severity levels when
@@ -307,68 +281,184 @@ func (m *DashboardModel) visibleLogLines() int {
 	return logsHeight
 }
 
-// feedDrain3Incremental queries DuckDB for logs newer than the last processed count
-// and feeds them to drain3 incrementally on each tick.
-// totalCount is the pre-fetched TotalLogCount shared across the tick.
-func (m *DashboardModel) feedDrain3Incremental(totalCount int64) {
-	if totalCount <= int64(m.drain3LastProcessed) {
+func (m *DashboardModel) fetchTickDataCmd(opts model.QueryOpts, severityLevels []string, messagePattern string, logLimit int, drainFrom int) tea.Cmd {
+	store := m.store
+	if store == nil {
+		return func() tea.Msg { return tickDataLoadedMsg{} }
+	}
+
+	severityCopy := append([]string(nil), severityLevels...)
+
+	return func() tea.Msg {
+		msg := tickDataLoadedMsg{}
+
+		if v, err := store.TotalLogCount(opts); err == nil {
+			msg.totalCount = v
+			msg.hasTotalCount = true
+		}
+
+		if apps, err := store.ListApps(); err == nil {
+			msg.appList = apps
+			msg.hasAppList = true
+		}
+
+		if rows, err := store.SeverityCountsByMinute(opts); err == nil {
+			msg.countsHistory = minuteCountsToSeverity(rows)
+			msg.hasCounts = true
+		}
+
+		if words, err := store.TopWords(20, opts); err == nil {
+			msg.words = words
+			msg.hasWords = true
+		}
+
+		if attrKeys, err := store.TopAttributeKeys(20, opts); err == nil {
+			entries := make([]AttributeEntry, len(attrKeys))
+			for i, ak := range attrKeys {
+				entries[i] = AttributeEntry{
+					Key:              ak.Key,
+					UniqueValueCount: ak.UniqueValues,
+					TotalCount:       ak.TotalCount,
+				}
+			}
+			msg.attributes = entries
+			msg.hasAttributes = true
+		}
+
+		if msg.hasTotalCount && msg.totalCount > int64(drainFrom) {
+			newCount := int(msg.totalCount) - drainFrom
+			if newCount > 5000 {
+				newCount = 5000
+			}
+			if newCount > 0 {
+				if records, err := store.RecentLogsFiltered(newCount, opts.App, nil, ""); err == nil {
+					startIdx := 0
+					if len(records) > newCount {
+						startIdx = len(records) - newCount
+					}
+					msg.drain3Records = append([]model.LogRecord(nil), records[startIdx:]...)
+					msg.drain3Processed = int(msg.totalCount)
+					msg.hasDrain3 = true
+				}
+			}
+		}
+
+		if len(severityCopy) == 0 && severityLevels != nil {
+			msg.logEntries = []model.LogRecord{}
+			msg.hasLogEntries = true
+		} else if records, err := store.RecentLogsFiltered(logLimit, opts.App, severityCopy, messagePattern); err == nil {
+			msg.logEntries = records
+			msg.hasLogEntries = true
+		}
+
+		return msg
+	}
+}
+
+func (m *DashboardModel) applyTickData(msg tickDataLoadedMsg) {
+	if msg.hasTotalCount {
+		m.updateProcessingRateStats(msg.totalCount)
+	}
+
+	if msg.hasAppList {
+		m.appList = msg.appList
+		m.clampSidebarCursor()
+	}
+
+	if msg.hasCounts {
+		m.countsHistory = msg.countsHistory
+		m.applyCountsDataToPanels(msg.countsHistory)
+	}
+
+	if msg.hasWords {
+		m.applyWordsDataToPanels(msg.words)
+	}
+
+	if msg.hasAttributes {
+		m.applyAttributesDataToPanels(msg.attributes)
+	}
+
+	if msg.hasDrain3 {
+		m.applyDrain3Records(msg.drain3Records, msg.drain3Processed)
+	}
+
+	if msg.hasLogEntries && !m.liveUpdatesPaused() {
+		m.applyLogEntries(msg.logEntries)
+	}
+}
+
+func (m *DashboardModel) applyWordsDataToPanels(words []model.WordCount) {
+	if len(m.deckPages) == 0 {
+		for _, panel := range m.panels {
+			if p, ok := panel.(*WordsChartPanel); ok {
+				p.SetData(words)
+			}
+		}
 		return
 	}
-
-	// Fetch new logs since last processed
-	total := totalCount
-	newCount := int(total) - m.drain3LastProcessed
-	if newCount > 5000 {
-		newCount = 5000 // Cap per-tick to avoid blocking
-	}
-
-	records, err := m.store.RecentLogsFiltered(newCount, m.selectedApp, nil, "")
-	if err != nil || len(records) == 0 {
-		return
-	}
-
-	// Feed only the new records (the tail of the result set)
-	startIdx := 0
-	if len(records) > newCount {
-		startIdx = len(records) - newCount
-	}
-
-	for i := startIdx; i < len(records); i++ {
-		r := records[i]
-		if r.Message != "" {
-			m.drain3Manager.AddLogMessage(r.Message)
-			// Feed severity-specific drain3
-			if drain3Instance, exists := m.drain3BySeverity[r.Level]; exists && drain3Instance != nil {
-				drain3Instance.AddLogMessage(r.Message)
+	for _, page := range m.deckPages {
+		for _, panel := range page.Panels {
+			if p, ok := panel.(*WordsChartPanel); ok {
+				p.SetData(words)
 			}
 		}
 	}
-
-	m.drain3LastProcessed = int(total)
 }
 
-// refreshLogEntriesFromStore queries DuckDB for the filtered log list.
-func (m *DashboardModel) refreshLogEntriesFromStore() {
-	if m.store == nil {
+func (m *DashboardModel) applyAttributesDataToPanels(entries []AttributeEntry) {
+	if len(m.deckPages) == 0 {
+		for _, panel := range m.panels {
+			if p, ok := panel.(*AttributesChartPanel); ok {
+				p.SetData(entries)
+			}
+		}
+		return
+	}
+	for _, page := range m.deckPages {
+		for _, panel := range page.Panels {
+			if p, ok := panel.(*AttributesChartPanel); ok {
+				p.SetData(entries)
+			}
+		}
+	}
+}
+
+func (m *DashboardModel) applyCountsDataToPanels(history []SeverityCounts) {
+	if len(m.deckPages) == 0 {
+		for _, panel := range m.panels {
+			if p, ok := panel.(*CountsChartPanel); ok {
+				p.SetData(history)
+			}
+		}
+		return
+	}
+	for _, page := range m.deckPages {
+		for _, panel := range page.Panels {
+			if p, ok := panel.(*CountsChartPanel); ok {
+				p.SetData(history)
+			}
+		}
+	}
+}
+
+func (m *DashboardModel) applyDrain3Records(records []model.LogRecord, processed int) {
+	if m.drain3Manager == nil {
 		return
 	}
 
-	severityLevels := m.activeSeverityLevels()
-	if m.severityFilterActive && len(severityLevels) == 0 {
-		m.logEntries = m.logEntries[:0]
-		return
+	for _, r := range records {
+		if r.Message == "" {
+			continue
+		}
+		m.drain3Manager.AddLogMessage(r.Message)
+		if drain3Instance, exists := m.drain3BySeverity[r.Level]; exists && drain3Instance != nil {
+			drain3Instance.AddLogMessage(r.Message)
+		}
 	}
+	m.drain3LastProcessed = processed
+}
 
-	var messagePattern string
-	if m.filterRegex != nil {
-		messagePattern = m.filterRegex.String()
-	}
-
-	records, err := m.store.RecentLogsFiltered(m.visibleLogLines(), m.selectedApp, severityLevels, messagePattern)
-	if err != nil {
-		return
-	}
-
+func (m *DashboardModel) applyLogEntries(records []model.LogRecord) {
 	m.logEntries = records
 
 	// Clamp selection to bounds; auto-scroll pins to the latest entry.
@@ -378,7 +468,6 @@ func (m *DashboardModel) refreshLogEntriesFromStore() {
 		m.selectedLogIndex = max(0, len(m.logEntries)-1)
 	}
 }
-
 
 // initializeCharts sets up the charts based on current dimensions
 func (m *DashboardModel) initializeCharts() {
@@ -430,7 +519,6 @@ func (m *DashboardModel) updateProcessingRateStats(totalCount int64) {
 	m.stats.lastTickTime = now
 	m.stats.LogsThisSecond = delta // Used by formatCurrentRate
 }
-
 
 // getDisplayTimestamp returns the appropriate timestamp based on useLogTime setting
 // Falls back to receive time (Timestamp) if OrigTimestamp is not available

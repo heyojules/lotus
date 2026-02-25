@@ -19,7 +19,9 @@ func (h filterInputHandler) HandleKey(m *DashboardModel, msg tea.KeyMsg) (bool, 
 		m.filterRegex = nil
 		if m.activeSection == SectionFilter {
 			m.activeSection = SectionCharts
-			m.activePanelIdx = 0
+			if m.activePanelIdx >= len(m.panels) {
+				m.activePanelIdx = max(0, len(m.panels)-1)
+			}
 		}
 		return true, nil
 	case "enter":

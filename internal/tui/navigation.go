@@ -56,7 +56,9 @@ func (m *DashboardModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.searchTerm = ""
 			if m.activeSection == SectionFilter {
 				m.activeSection = SectionCharts
-				m.activePanelIdx = 0
+				if m.activePanelIdx >= len(m.panels) {
+					m.activePanelIdx = max(0, len(m.panels)-1)
+				}
 			}
 			return m, nil
 		}
@@ -105,7 +107,16 @@ func (m *DashboardModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					m.appList = apps
 				}
 			}
+			m.clampSidebarCursor()
 		}
+		return m, nil
+
+	case "]":
+		m.nextPage()
+		return m, nil
+
+	case "[":
+		m.prevPage()
 		return m, nil
 
 	case "c":
@@ -165,24 +176,15 @@ func (m *DashboardModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	// Sidebar navigation
 	if m.activeSection == SectionSidebar && m.sidebarVisible {
-		maxIdx := len(m.appList)
 		switch msg.String() {
 		case "up", "k":
-			if m.appListIdx > 0 {
-				m.appListIdx--
-			}
+			m.moveSidebarCursor(-1)
 			return m, nil
 		case "down", "j":
-			if m.appListIdx < maxIdx {
-				m.appListIdx++
-			}
+			m.moveSidebarCursor(1)
 			return m, nil
 		case "enter":
-			if m.appListIdx == 0 {
-				m.selectedApp = ""
-			} else if m.appListIdx-1 < len(m.appList) {
-				m.selectedApp = m.appList[m.appListIdx-1]
-			}
+			m.activateSidebarCursor()
 			return m, nil
 		}
 	}
@@ -278,7 +280,9 @@ func (m *DashboardModel) nextSection() {
 			m.activeSection = SectionLogs
 		} else {
 			m.activeSection = SectionCharts
-			m.activePanelIdx = 0
+			if m.activePanelIdx >= len(m.panels) {
+				m.activePanelIdx = max(0, len(m.panels)-1)
+			}
 		}
 		return
 	}
@@ -288,7 +292,9 @@ func (m *DashboardModel) nextSection() {
 			m.activeSection = SectionLogs
 		} else {
 			m.activeSection = SectionCharts
-			m.activePanelIdx = 0
+			if m.activePanelIdx >= len(m.panels) {
+				m.activePanelIdx = max(0, len(m.panels)-1)
+			}
 		}
 		return
 	}
@@ -314,7 +320,9 @@ func (m *DashboardModel) nextSection() {
 			m.activeSection = SectionLogs
 		} else {
 			m.activeSection = SectionCharts
-			m.activePanelIdx = 0
+			if m.activePanelIdx >= len(m.panels) {
+				m.activePanelIdx = max(0, len(m.panels)-1)
+			}
 		}
 	}
 }

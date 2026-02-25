@@ -23,15 +23,12 @@ func NewWordsChartPanel() *WordsChartPanel {
 func (p *WordsChartPanel) ID() string    { return "words" }
 func (p *WordsChartPanel) Title() string { return "Words" }
 
-func (p *WordsChartPanel) Refresh(store model.LogQuerier, opts model.QueryOpts) {
-	if store == nil {
-		return
-	}
-	words, err := store.TopWords(20, opts)
-	if err != nil {
-		return
-	}
-	p.data = words
+func (p *WordsChartPanel) Refresh(_ model.LogQuerier, _ model.QueryOpts) {
+	// no-op: data is pushed from async tick results
+}
+
+func (p *WordsChartPanel) SetData(words []model.WordCount) {
+	p.data = append([]model.WordCount(nil), words...)
 }
 
 func (p *WordsChartPanel) ContentLines(ctx ViewContext) int {

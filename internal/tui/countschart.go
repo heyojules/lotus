@@ -13,23 +13,34 @@ import (
 
 // CountsChartPanel displays log counts over time as a stacked bar chart.
 type CountsChartPanel struct {
-	dashboard *DashboardModel // kept for countsHistory access
+	pushModalCmd tea.Cmd
+	data         []SeverityCounts
 }
 
 // NewCountsChartPanel creates a new counts chart panel.
 func NewCountsChartPanel(m *DashboardModel) *CountsChartPanel {
-	return &CountsChartPanel{dashboard: m}
+	return &CountsChartPanel{
+		pushModalCmd: func() tea.Msg {
+			modal := NewCountsModal(m)
+			return ActionMsg{Action: ActionPushModal, Payload: modal}
+		},
+		data: make([]SeverityCounts, 0),
+	}
 }
 
 func (p *CountsChartPanel) ID() string    { return "counts" }
 func (p *CountsChartPanel) Title() string { return "Counts" }
 
 func (p *CountsChartPanel) Refresh(_ model.LogQuerier, _ model.QueryOpts) {
-	// no-op: countsHistory is updated by refreshCountsHistoryFromStore in tick handler
+	// no-op: data is pushed from async tick results
+}
+
+func (p *CountsChartPanel) SetData(history []SeverityCounts) {
+	p.data = append([]SeverityCounts(nil), history...)
 }
 
 func (p *CountsChartPanel) ContentLines(ctx ViewContext) int {
-	if len(p.dashboard.countsHistory) == 0 {
+	if len(p.data) == 0 {
 		return 1
 	}
 	chartHeight := 8
@@ -40,7 +51,7 @@ func (p *CountsChartPanel) ContentLines(ctx ViewContext) int {
 }
 
 func (p *CountsChartPanel) ItemCount() int {
-	return len(p.dashboard.countsHistory)
+	return len(p.data)
 }
 
 func (p *CountsChartPanel) Render(ctx ViewContext, width, height int, active bool, _ int) string {
@@ -50,10 +61,10 @@ func (p *CountsChartPanel) Render(ctx ViewContext, width, height int, active boo
 	}
 
 	var headerText string
-	if len(p.dashboard.countsHistory) > 0 {
-		latest := p.dashboard.countsHistory[len(p.dashboard.countsHistory)-1]
+	if len(p.data) > 0 {
+		latest := p.data[len(p.data)-1]
 		minTotal, maxTotal := latest.Total, latest.Total
-		for _, counts := range p.dashboard.countsHistory {
+		for _, counts := range p.data {
 			if counts.Total < minTotal {
 				minTotal = counts.Total
 			}
@@ -77,7 +88,7 @@ func (p *CountsChartPanel) Render(ctx ViewContext, width, height int, active boo
 	title := chartTitleStyle.Render(headerText)
 
 	var content string
-	if len(p.dashboard.countsHistory) > 0 {
+	if len(p.data) > 0 {
 		content = p.renderContent(ctx, width)
 	} else {
 		content = helpStyle.Render("No data available")
@@ -87,17 +98,19 @@ func (p *CountsChartPanel) Render(ctx ViewContext, width, height int, active boo
 }
 
 func (p *CountsChartPanel) OnSelect(_ ViewContext, _ int) tea.Cmd {
-	modal := NewCountsModal(p.dashboard)
-	return actionMsg(ActionMsg{Action: ActionPushModal, Payload: modal})
+	if p.pushModalCmd == nil {
+		return nil
+	}
+	return p.pushModalCmd
 }
 
 func (p *CountsChartPanel) renderContent(ctx ViewContext, chartWidth int) string {
-	if len(p.dashboard.countsHistory) == 0 {
+	if len(p.data) == 0 {
 		return helpStyle.Render("No data available")
 	}
 
 	totalLogs := 0
-	for _, counts := range p.dashboard.countsHistory {
+	for _, counts := range p.data {
 		totalLogs += counts.Total
 	}
 
@@ -111,7 +124,7 @@ func (p *CountsChartPanel) renderContent(ctx ViewContext, chartWidth int) string
 		chartHeight = 6
 	}
 
-	dataPoints := len(p.dashboard.countsHistory)
+	dataPoints := len(p.data)
 	maxBars := actualChartWidth / 3
 
 	var paddingCount int
@@ -153,7 +166,7 @@ func (p *CountsChartPanel) renderContent(ctx ViewContext, chartWidth int) string
 
 	actualDataCount := min(dataPoints, maxBars-paddingCount)
 	for i := 0; i < actualDataCount; i++ {
-		counts := p.dashboard.countsHistory[dataStartIdx+i]
+		counts := p.data[dataStartIdx+i]
 
 		var barValues []barchart.BarValue
 
@@ -195,8 +208,8 @@ func (p *CountsChartPanel) renderContent(ctx ViewContext, chartWidth int) string
 	chartOutput := bc.View()
 
 	var legend string
-	if len(p.dashboard.countsHistory) > 0 {
-		latest := p.dashboard.countsHistory[len(p.dashboard.countsHistory)-1]
+	if len(p.data) > 0 {
+		latest := p.data[len(p.data)-1]
 
 		severityLevels := []struct {
 			name  string

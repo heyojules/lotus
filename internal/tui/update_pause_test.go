@@ -168,6 +168,22 @@ func TestTick_ResumesAfterLeavingLogs(t *testing.T) {
 
 	m.activeSection = SectionCharts
 	m.Update(TickMsg(time.Now()))
+	if !m.tickInFlight {
+		t.Fatal("expected async tick fetch to be in-flight after leaving logs")
+	}
+
+	var messagePattern string
+	if m.filterRegex != nil {
+		messagePattern = m.filterRegex.String()
+	}
+	msg := m.fetchTickDataCmd(
+		m.queryOpts(),
+		m.activeSeverityLevels(),
+		messagePattern,
+		m.visibleLogLines(),
+		m.drain3LastProcessed,
+	)()
+	m.Update(msg)
 
 	if store.totalLogCountCalls == 0 {
 		t.Fatal("expected refresh calls after leaving logs, got none")
