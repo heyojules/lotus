@@ -13,3 +13,19 @@ api-port: 3000
 # insert-flush-interval: 100ms
 # insert-flush-queue-size: 64
 # max-concurrent-queries: 8
+
+# Backups (disabled by default)
+# backup-enabled: true
+# backup-interval: 6h
+# backup-local-dir: ~/.local/share/lotus/backups
+# backup-keep-last: 24
+#
+# Optional S3 upload (s3://bucket/prefix)
+# Requires AWS CLI available in PATH for this POC uploader.
+# backup-bucket-url: s3://my-bucket/lotus-backups
+# backup-s3-endpoint: s3.amazonaws.com
+# backup-s3-region: us-east-1
+# backup-s3-access-key: your-access-key
+# backup-s3-secret-key: your-secret-key
+# backup-s3-session-token: "" # optional
+# backup-s3-use-ssl: true

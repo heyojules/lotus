@@ -11,6 +11,7 @@ import (
 	"syscall"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/control-theory/lotus/internal/backup"
 	"github.com/control-theory/lotus/internal/duckdb"
 	"github.com/control-theory/lotus/internal/httpserver"
 	"github.com/control-theory/lotus/internal/ingest"
@@ -45,6 +46,27 @@ func runServer(cfg appConfig) error {
 	})
 	if retentionCleaner != nil {
 		defer retentionCleaner.Stop()
+	}
+
+	// Start periodic backups when enabled.
+	backupManager, err := backup.NewManager(store, backup.Config{
+		Enabled:        cfg.BackupEnabled,
+		Interval:       cfg.BackupInterval,
+		LocalDir:       cfg.BackupLocalDir,
+		KeepLast:       cfg.BackupKeepLast,
+		BucketURL:      cfg.BackupBucketURL,
+		S3Endpoint:     cfg.BackupS3Endpoint,
+		S3Region:       cfg.BackupS3Region,
+		S3AccessKey:    cfg.BackupS3AccessKey,
+		S3SecretKey:    cfg.BackupS3SecretKey,
+		S3SessionToken: cfg.BackupS3SessionToken,
+		S3UseSSL:       cfg.BackupS3UseSSL,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to initialize backups: %w", err)
+	}
+	if backupManager != nil {
+		defer backupManager.Stop()
 	}
 
 	// Start HTTP API server if enabled
@@ -218,6 +240,11 @@ func printStartupBanner(cfg appConfig, hasSources bool, processorName string) {
 
 	lines = append(lines, fmt.Sprintf("    %s  Unix Socket    %s", check, cyan.Render(shortenPath(cfg.SocketPath))))
 	lines = append(lines, fmt.Sprintf("    %s  DuckDB         %s", check, dim.Render(shortenPath(cfg.DBPath))))
+	if cfg.BackupEnabled {
+		lines = append(lines, fmt.Sprintf("    %s  Backups        %s", check, dim.Render(shortenPath(cfg.BackupLocalDir))))
+	} else {
+		lines = append(lines, fmt.Sprintf("    %s  Backups        %s", dot, dim.Render("disabled")))
+	}
 
 	if hasSources {
 		lines = append(lines, fmt.Sprintf("    %s  Log Sources    %s", check, dim.Render("connected")))

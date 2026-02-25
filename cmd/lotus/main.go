@@ -67,6 +67,7 @@ func loadConfig(configPath string) (appConfig, error) {
 	}
 
 	defaultDBPath := filepath.Join(home, ".local", "share", "lotus", "lotus.duckdb")
+	defaultBackupDir := filepath.Join(home, ".local", "share", "lotus", "backups")
 
 	v := viper.New()
 	v.SetEnvPrefix("LOTUS")
@@ -95,6 +96,17 @@ func loadConfig(configPath string) (appConfig, error) {
 	v.SetDefault("insert-flush-queue-size", defaultInsertFlushQueue)
 	v.SetDefault("socket-path", socketrpc.DefaultSocketPath())
 	v.SetDefault("log-retention", defaultLogRetention)
+	v.SetDefault("backup-enabled", false)
+	v.SetDefault("backup-interval", defaultBackupInterval)
+	v.SetDefault("backup-local-dir", defaultBackupDir)
+	v.SetDefault("backup-keep-last", defaultBackupKeepLast)
+	v.SetDefault("backup-bucket-url", "")
+	v.SetDefault("backup-s3-endpoint", "")
+	v.SetDefault("backup-s3-region", defaultBackupS3Region)
+	v.SetDefault("backup-s3-access-key", "")
+	v.SetDefault("backup-s3-secret-key", "")
+	v.SetDefault("backup-s3-session-token", "")
+	v.SetDefault("backup-s3-use-ssl", true)
 
 	if configPath != "" {
 		v.SetConfigFile(configPath)
@@ -123,10 +135,27 @@ func loadConfig(configPath string) (appConfig, error) {
 	if !ingest.IsValidProcessorMode(cfg.Processor) {
 		return cfg, fmt.Errorf("invalid processor mode %q", cfg.Processor)
 	}
+	if cfg.BackupEnabled && cfg.BackupInterval <= 0 {
+		return cfg, fmt.Errorf("invalid backup-interval: %s", cfg.BackupInterval)
+	}
+	if cfg.BackupEnabled && cfg.BackupKeepLast < 0 {
+		return cfg, fmt.Errorf("invalid backup-keep-last: %d", cfg.BackupKeepLast)
+	}
+	if cfg.BackupEnabled && strings.TrimSpace(cfg.BackupBucketURL) != "" {
+		if strings.TrimSpace(cfg.BackupS3AccessKey) == "" || strings.TrimSpace(cfg.BackupS3SecretKey) == "" {
+			return cfg, fmt.Errorf("backup-s3-access-key and backup-s3-secret-key are required when backup-bucket-url is set")
+		}
+	}
 
 	// Expand ~ in db-path
 	if strings.HasPrefix(cfg.DBPath, "~/") {
 		cfg.DBPath = filepath.Join(home, cfg.DBPath[2:])
+	}
+	if strings.HasPrefix(cfg.BackupLocalDir, "~/") {
+		cfg.BackupLocalDir = filepath.Join(home, cfg.BackupLocalDir[2:])
+	}
+	if cfg.BackupEnabled && cfg.DBPath == "" {
+		return cfg, fmt.Errorf("backup-enabled requires on-disk db-path")
 	}
 
 	host := cfg.Host

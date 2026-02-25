@@ -30,6 +30,7 @@ Read path:
 Retention:
 
 - Optional hourly cleanup deletes logs older than `log-retention` days.
+- Optional periodic backups create local DuckDB snapshots and can upload to S3-compatible storage.
 
 ## Why It Is Decoupled
 
@@ -73,3 +74,4 @@ This keeps implementation simple but prevents cross-layer leakage.
 
 1. Add query telemetry (duration, rows, timeout count) when performance tuning starts.
 2. Add typed read endpoints for common queries only when `/api/query` becomes operationally risky.
+3. Add restore tooling and upload retry queue for backup workflow.

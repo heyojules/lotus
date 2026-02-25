@@ -44,6 +44,7 @@ flowchart LR
 ## Operations
 
 - [Durable Local Forwarding With rsyslog](../operations/rsyslog-forwarder.md)
+- [DuckDB Backup Strategy](../operations/duckdb-backups.md)
 
 ## Decision Rule
 

@@ -143,6 +143,123 @@ api-port: 3400
 	}
 }
 
+func TestLoadConfig_BackupSettings(t *testing.T) {
+	resetLotusEnv(t)
+
+	tests := []struct {
+		name         string
+		configYAML   string
+		wantErr      bool
+		errSubstring string
+		assert       func(t *testing.T, cfg appConfig)
+	}{
+		{
+			name: "backup defaults disabled",
+			configYAML: `
+tcp-port: 4000
+api-port: 3000
+`,
+			assert: func(t *testing.T, cfg appConfig) {
+				t.Helper()
+				if cfg.BackupEnabled {
+					t.Fatal("backup should be disabled by default")
+				}
+				if cfg.BackupInterval <= 0 {
+					t.Fatalf("backup interval should be > 0, got %s", cfg.BackupInterval)
+				}
+				if cfg.BackupKeepLast <= 0 {
+					t.Fatalf("backup keep-last should be > 0, got %d", cfg.BackupKeepLast)
+				}
+			},
+		},
+		{
+			name: "backup accepts custom s3 config",
+			configYAML: `
+backup-enabled: true
+backup-interval: 1h
+backup-local-dir: /tmp/lotus-backups
+backup-keep-last: 10
+backup-bucket-url: s3://my-bucket/lotus
+backup-s3-endpoint: s3.amazonaws.com
+backup-s3-region: us-east-1
+backup-s3-access-key: key
+backup-s3-secret-key: secret
+backup-s3-use-ssl: true
+tcp-port: 4000
+api-port: 3000
+`,
+			assert: func(t *testing.T, cfg appConfig) {
+				t.Helper()
+				if !cfg.BackupEnabled {
+					t.Fatal("backup should be enabled")
+				}
+				if cfg.BackupBucketURL != "s3://my-bucket/lotus" {
+					t.Fatalf("bucket url = %q", cfg.BackupBucketURL)
+				}
+				if cfg.BackupKeepLast != 10 {
+					t.Fatalf("keep-last = %d, want 10", cfg.BackupKeepLast)
+				}
+			},
+		},
+		{
+			name: "invalid backup interval rejected",
+			configYAML: `
+backup-enabled: true
+backup-interval: 0s
+tcp-port: 4000
+api-port: 3000
+`,
+			wantErr:      true,
+			errSubstring: "invalid backup-interval",
+		},
+		{
+			name: "invalid backup keep-last rejected",
+			configYAML: `
+backup-enabled: true
+backup-keep-last: -1
+tcp-port: 4000
+api-port: 3000
+`,
+			wantErr:      true,
+			errSubstring: "invalid backup-keep-last",
+		},
+		{
+			name: "bucket url requires credentials",
+			configYAML: `
+backup-enabled: true
+backup-bucket-url: s3://my-bucket/lotus
+tcp-port: 4000
+api-port: 3000
+`,
+			wantErr:      true,
+			errSubstring: "backup-s3-access-key and backup-s3-secret-key are required",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			configPath := writeTempConfig(t, tt.configYAML)
+			cfg, err := loadConfig(configPath)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				if tt.errSubstring != "" && !strings.Contains(err.Error(), tt.errSubstring) {
+					t.Fatalf("error = %q, want substring %q", err.Error(), tt.errSubstring)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("loadConfig returned error: %v", err)
+			}
+			if tt.assert != nil {
+				tt.assert(t, cfg)
+			}
+		})
+	}
+}
+
 func writeTempConfig(t *testing.T, content string) string {
 	t.Helper()
 

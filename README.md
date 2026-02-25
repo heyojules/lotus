@@ -67,6 +67,7 @@ More detailed layer docs and interface contracts:
 - `docs/layers/README.md`
 - `docs/layers/interfaces.md`
 - `docs/operations/rsyslog-forwarder.md`
+- `docs/operations/duckdb-backups.md`
 
 ## Ingest Topologies
 
@@ -156,6 +157,39 @@ Notes:
 
 - Defaults are set in code; configuration is optional.
 - Very large single log lines are capped at 1MB per line on TCP/stdin inputs.
+
+## DuckDB Backups (POC)
+
+Backups are disabled by default. When enabled, Lotus creates periodic local DuckDB snapshots and can optionally upload each snapshot to an S3-compatible bucket.
+
+```yaml
+backup-enabled: true
+backup-interval: 6h
+backup-local-dir: ~/.local/share/lotus/backups
+backup-keep-last: 24
+```
+
+Optional S3 upload:
+
+```yaml
+backup-bucket-url: s3://my-bucket/lotus-backups
+backup-s3-endpoint: s3.amazonaws.com
+backup-s3-region: us-east-1
+backup-s3-access-key: your-access-key
+backup-s3-secret-key: your-secret-key
+backup-s3-use-ssl: true
+```
+
+Notes:
+
+- `backup-enabled: false` (default) keeps current behavior unchanged.
+- Local snapshots are pruned to `backup-keep-last`.
+- Bucket URL format is `s3://bucket/prefix`.
+- Current POC uploader uses AWS CLI (`aws s3 cp`) under the hood for remote uploads.
+
+Full strategy and operational guide:
+
+- [`docs/operations/duckdb-backups.md`](docs/operations/duckdb-backups.md)
 
 ## Processor Modes
 
