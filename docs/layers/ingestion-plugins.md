@@ -37,6 +37,12 @@ type LogSource interface {
 
 Enabled plugins are built and then merged through `SourceMultiplexer` into one buffered channel (`DefaultMuxBuffer = 50_000`).
 
+Operational default:
+
+- TCP ingest listens on `127.0.0.1:4000` by default (`host: 127.0.0.1`, `tcp-port: 4000`).
+- `stdin` ingest activates automatically when Lotus receives piped input.
+- For remote-machine senders, bind TCP to a reachable address using `host` (or `tcp-addr`), for example `0.0.0.0:4000`.
+
 ## Why It Is Decoupled
 
 - Input format details (TCP, stdin) are isolated from parsing/storage.
@@ -52,7 +58,7 @@ Enabled plugins are built and then merged through `SourceMultiplexer` into one b
 
 ## Current Friction
 
-- Source metadata is lossy at merge time. Processing gets a single `sourceName` (primary source), not per-line source identity.
+- Per-line source identity is preserved (`IngestEnvelope.Source`), but connection-level metadata (e.g. remote address) is not propagated in the envelope.
 - `Stop()` does not return errors, so shutdown failures are silent.
 - Health and backpressure signals are not surfaced as first-class metrics/events.
 

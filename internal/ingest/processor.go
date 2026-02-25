@@ -29,6 +29,8 @@ type Processor struct {
 	lastResult *ProcessResult
 }
 
+func (p *Processor) Name() string { return ProcessorModeParse }
+
 // RecordSink accepts processed records.
 // InsertBuffer is one implementation.
 type RecordSink interface {

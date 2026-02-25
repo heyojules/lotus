@@ -13,7 +13,21 @@ Transform raw lines into canonical `model.LogRecord` and forward to storage.
 
 ## Current Design
 
-`Processor` does three jobs:
+Processing runs behind a swappable processor contract:
+
+```go
+type EnvelopeProcessor interface {
+  Name() string
+  ProcessEnvelope(model.IngestEnvelope) *ProcessResult
+}
+```
+
+Current implementations:
+
+- `parse` (`Processor`) for full parse + normalize behavior.
+- `passthrough` (`PassthroughProcessor`) for minimal processing.
+
+`parse` does three jobs:
 
 1. Multi-line JSON accumulation (`tryAccumulateJSON`, `CountJSONDepth`)
 2. Parsing and normalization (`ParseJSONLogEntry`, fallback parsing)
@@ -58,7 +72,7 @@ type RecordSink interface {
 }
 ```
 
-`Processor` now depends on this interface, with `InsertBuffer` as one implementation.
+Processors depend on this interface, with `InsertBuffer` as one implementation.
 
 This is enough to keep business logic swappable without adding architecture layers.
 

@@ -99,10 +99,13 @@ func runServer(cfg appConfig) error {
 	mux := NewSourceMultiplexer(ctx, sources, cfg.MuxBufferSize)
 	mux.Start()
 
-	// Create the log processor
-	processor := ingest.NewProcessor(insertBuffer, "")
+	// Create the configured envelope processor.
+	processor, err := ingest.NewEnvelopeProcessor(cfg.Processor, insertBuffer, "")
+	if err != nil {
+		return fmt.Errorf("build processor: %w", err)
+	}
 
-	printStartupBanner(cfg, mux.HasSources())
+	printStartupBanner(cfg, mux.HasSources(), processor.Name())
 
 	// Use errgroup for concurrent goroutine lifecycle management.
 	g, gctx := errgroup.WithContext(ctx)
@@ -170,7 +173,7 @@ func configureRuntimeLogger() func() {
 	}
 }
 
-func printStartupBanner(cfg appConfig, hasSources bool) {
+func printStartupBanner(cfg appConfig, hasSources bool, processorName string) {
 	dim := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 	green := lipgloss.NewStyle().Foreground(lipgloss.Color("42"))
 	cyan := lipgloss.NewStyle().Foreground(lipgloss.Color("39"))
@@ -221,6 +224,7 @@ func printStartupBanner(cfg appConfig, hasSources bool) {
 	} else {
 		lines = append(lines, fmt.Sprintf("    %s  Log Sources    %s", dot, dim.Render("waiting")))
 	}
+	lines = append(lines, fmt.Sprintf("    %s  Processor      %s", check, dim.Render(processorName)))
 
 	lines = append(lines, "")
 	lines = append(lines, bold.Render("    Config"))

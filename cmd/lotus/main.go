@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/control-theory/lotus/internal/ingest"
 	"github.com/control-theory/lotus/internal/socketrpc"
 
 	"github.com/spf13/viper"
@@ -75,6 +76,8 @@ func loadConfig(configPath string) (appConfig, error) {
 	v.SetDefault("update-interval", defaultUpdateInterval)
 	v.SetDefault("log-buffer", defaultLogBuffer)
 	v.SetDefault("test-mode", false)
+	v.SetDefault("host", defaultBindHost)
+	v.SetDefault("processor", ingest.ProcessorModeParse)
 	v.SetDefault("tcp-enabled", true)
 	v.SetDefault("tcp-port", defaultTCPPort)
 	v.SetDefault("mux-buffer-size", defaultMuxBufferSize)
@@ -117,17 +120,25 @@ func loadConfig(configPath string) (appConfig, error) {
 	if cfg.APIPort <= 0 || cfg.APIPort > 65535 {
 		return cfg, fmt.Errorf("invalid api-port: %d", cfg.APIPort)
 	}
+	if !ingest.IsValidProcessorMode(cfg.Processor) {
+		return cfg, fmt.Errorf("invalid processor mode %q", cfg.Processor)
+	}
 
 	// Expand ~ in db-path
 	if strings.HasPrefix(cfg.DBPath, "~/") {
 		cfg.DBPath = filepath.Join(home, cfg.DBPath[2:])
 	}
 
+	host := cfg.Host
+	if host == "" {
+		host = defaultBindHost
+	}
+
 	if cfg.TCPAddr == "" {
-		cfg.TCPAddr = net.JoinHostPort(defaultBindHost, strconv.Itoa(cfg.TCPPort))
+		cfg.TCPAddr = net.JoinHostPort(host, strconv.Itoa(cfg.TCPPort))
 	}
 	if cfg.APIAddr == "" {
-		cfg.APIAddr = net.JoinHostPort(defaultBindHost, strconv.Itoa(cfg.APIPort))
+		cfg.APIAddr = net.JoinHostPort(host, strconv.Itoa(cfg.APIPort))
 	}
 
 	return cfg, nil

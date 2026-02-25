@@ -8,7 +8,7 @@ This document captures current boundaries and the minimal target shape for swapp
 
 - Transport: `<-chan model.IngestEnvelope`
 - Producer: `NamedLogSource` via `SourceMultiplexer`
-- Consumer: `ingest.Processor.ProcessEnvelope(env model.IngestEnvelope)`
+- Consumer: `ingest.EnvelopeProcessor.ProcessEnvelope(env model.IngestEnvelope)`
 
 ### Processing -> Storage
 

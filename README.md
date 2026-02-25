@@ -67,6 +67,50 @@ More detailed layer docs and interface contracts:
 - `docs/layers/README.md`
 - `docs/layers/interfaces.md`
 
+## Ingest Topologies
+
+Lotus supports two practical ingest modes:
+
+1. Same machine via `stdin` pipe.
+2. Other machines via TCP on port `4000`.
+
+### Same machine (pipe to stdin)
+
+When stdin is piped, the `stdin` input plugin is enabled automatically:
+
+```sh
+your-app 2>&1 | lotus
+```
+
+### Other machine (TCP :4000)
+
+TCP ingest is enabled by default on port `4000`, but Lotus binds to localhost unless configured otherwise.
+
+Default runtime bind:
+
+```yaml
+host: 127.0.0.1
+tcp-port: 4000
+# resolves to tcp-addr: 127.0.0.1:4000 when tcp-addr is not set
+```
+
+To accept logs from another machine, either set `host` to a reachable interface, or set `tcp-addr` directly:
+
+```yaml
+host: 0.0.0.0
+# (optional) tcp-port: 4000
+```
+
+```yaml
+tcp-addr: 0.0.0.0:4000
+# or a specific NIC/IP, e.g. 10.0.0.12:4000
+```
+
+Then send newline-delimited logs/NDJSON to `<lotus-host>:4000`.
+
+> [!NOTE]
+> TCP ingest currently has no built-in TLS/auth. Expose it only on trusted networks or behind a secure tunnel/proxy.
+
 ## Reliability and Tuning
 
 Lotus is designed to absorb short spikes and apply backpressure under sustained load:
@@ -90,6 +134,19 @@ Notes:
 
 - Defaults are set in code; configuration is optional.
 - Very large single log lines are capped at 1MB per line on TCP/stdin inputs.
+
+## Processor Modes
+
+Input plugins and processors are decoupled, so processor strategy is swappable without changing ingest transport wiring.
+
+```yaml
+processor: parse
+```
+
+Supported modes:
+
+- `parse` (default): JSON/text parsing + normalization into canonical records.
+- `passthrough`: lightweight fallback-record path with minimal processing for high-throughput cases.
 
 ## Themes
 

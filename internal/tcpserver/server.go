@@ -36,10 +36,10 @@ type Server struct {
 	wg          sync.WaitGroup
 }
 
-// NewServer creates a new TCP server. Default addr is "0.0.0.0:4000".
+// NewServer creates a new TCP server. Default addr is "127.0.0.1:4000".
 func NewServer(addr string, conf ...ServerConfig) *Server {
 	if addr == "" {
-		addr = "0.0.0.0:4000"
+		addr = "127.0.0.1:4000"
 	}
 	lineChannelSize := DefaultLineChannelSize
 	maxLineSize := DefaultMaxLineSize

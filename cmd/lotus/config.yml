@@ -1,6 +1,9 @@
 # Minimal runtime config
-# Lotus binds to 127.0.0.1 only; configure ports here.
+# Lotus defaults to localhost-only. Set host: 0.0.0.0 to expose on network.
 
+host: 127.0.0.1
+# processor modes: parse | passthrough
+processor: parse
 tcp-port: 4000
 api-port: 3000
 
