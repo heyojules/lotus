@@ -93,43 +93,47 @@ func (p *Processor) ProcessEnvelope(env model.IngestEnvelope) *ProcessResult {
 	return p.processEntry(env.Line, source)
 }
 
-// processEntry parses a line, analyzes it, and stores it.
+// processEntry parses an OTEL line, enriches it, and stores it.
 // Caller must hold p.mu. The lock is released before calling insertBuffer.Add()
 // to avoid holding the mutex during potential backpressure-induced DuckDB flushes.
 func (p *Processor) processEntry(line, source string) *ProcessResult {
-	// Try parsing as JSON first, fall back to plain text
-	record := ParseJSONLogEntry(line)
-	if record == nil {
-		record = CreateFallbackLogEntry(line)
+	// Parse-mode accepts OTEL JSON only.
+	records := ParseJSONLogEntries(line)
+	if len(records) == 0 {
+		return nil
 	}
 
-	// Fill in fields derived by the processor
-	record.Service = ExtractService(record.Attributes)
-	if record.Service == "unknown" && record.App != "" && record.App != "default" {
-		record.Service = record.App
+	for _, record := range records {
+		// Fill in fields derived by the processor.
+		record.Service = ExtractService(record.Attributes)
+		if record.Service == "unknown" && record.App != "" && record.App != "default" {
+			record.Service = record.App
+		}
+		record.Hostname = record.Attributes["host"]
+		if record.Hostname == "" {
+			record.Hostname = record.Attributes["hostname"]
+		}
+		if record.Hostname == "" {
+			record.Hostname = record.Attributes["host.name"]
+		}
+		record.Source = source
 	}
-	record.Hostname = record.Attributes["host"]
-	if record.Hostname == "" {
-		record.Hostname = record.Attributes["hostname"]
-	}
-	if record.Hostname == "" {
-		record.Hostname = record.Attributes["host.name"]
-	}
-	record.Source = source
 
 	sink := p.sink
 	// Release lock before potentially slow buffer insertion.
 	p.mu.Unlock()
 
 	if sink != nil {
-		sink.Add(record)
+		for _, record := range records {
+			sink.Add(record)
+		}
 	}
 
 	// Re-acquire lock (caller expects it held via defer).
 	p.mu.Lock()
 
 	return &ProcessResult{
-		Record: record,
+		Record: records[0],
 	}
 }
 

@@ -197,7 +197,7 @@ func generateJSONBurst(n int, app, service string) []string {
 	lines := make([]string, 0, n)
 	for i := 0; i < n; i++ {
 		lines = append(lines, fmt.Sprintf(
-			`{"time":"2026-02-23T20:00:00Z","level":"info","msg":"burst-%d","service.name":"%s","host":"load-host","_app":"%s"}`,
+			`{"timeUnixNano":"1761268800000000000","severityText":"Info","body":{"stringValue":"burst-%d"},"attributes":[{"key":"service.name","value":{"stringValue":"%s"}},{"key":"app","value":{"stringValue":"%s"}},{"key":"host.name","value":{"stringValue":"load-host"}}]}`,
 			i, service, app,
 		))
 	}
@@ -281,10 +281,9 @@ func containsDimension(items []model.DimensionCount, want string) bool {
 func TestE2E_Pipeline_TCPToHTTPAndSocket(t *testing.T) {
 	stack := startE2EStack(t, e2eConfig{})
 	lines := []string{
-		`{"time":"2026-02-23T10:00:00Z","level":"info","msg":"payment created","service.name":"billing-api","host":"h1","_app":"payments"}`,
-		`{"time":"2026-02-23T10:00:01Z","level":"warn","msg":"retrying webhook","service.name":"billing-api","host":"h1","_app":"payments"}`,
-		`{"time":"2026-02-23T10:00:02Z","level":"error","msg":"search timeout","service.name":"search-api","host":"h2","_app":"search"}`,
-		`plain ERROR fallback line`,
+		`{"timeUnixNano":"1761238800000000000","severityText":"Info","body":{"stringValue":"payment created"},"attributes":[{"key":"service.name","value":{"stringValue":"billing-api"}},{"key":"host.name","value":{"stringValue":"h1"}},{"key":"app","value":{"stringValue":"payments"}}]}`,
+		`{"timeUnixNano":"1761238801000000000","severityText":"Warn","body":{"stringValue":"retrying webhook"},"attributes":[{"key":"service.name","value":{"stringValue":"billing-api"}},{"key":"host.name","value":{"stringValue":"h1"}},{"key":"app","value":{"stringValue":"payments"}}]}`,
+		`{"timeUnixNano":"1761238802000000000","severityText":"Error","body":{"stringValue":"search timeout"},"attributes":[{"key":"service.name","value":{"stringValue":"search-api"}},{"key":"host.name","value":{"stringValue":"h2"}},{"key":"app","value":{"stringValue":"search"}}]}`,
 	}
 
 	sendTCPLines(t, stack.tcp.Addr(), lines)
@@ -310,7 +309,7 @@ func TestE2E_Pipeline_TCPToHTTPAndSocket(t *testing.T) {
 	}
 	sort.Strings(apps)
 	gotApps := strings.Join(apps, ",")
-	for _, required := range []string{"default", "payments", "search"} {
+	for _, required := range []string{"payments", "search"} {
 		if !strings.Contains(gotApps, required) {
 			t.Fatalf("apps missing %q in %v", required, apps)
 		}
@@ -332,7 +331,7 @@ func TestE2E_Pipeline_TCPToHTTPAndSocket(t *testing.T) {
 		t.Fatalf("postSQL status=%d", code)
 	}
 	gotCounts := rowsToAppCount(t, resp.Rows)
-	want := map[string]int64{"default": 1, "payments": 2, "search": 1}
+	want := map[string]int64{"payments": 2, "search": 1}
 	if len(gotCounts) != len(want) {
 		t.Fatalf("app count rows=%v want=%v", gotCounts, want)
 	}

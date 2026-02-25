@@ -121,11 +121,11 @@ func TestPipelineIntegration_ParseMode_MultiSourceFlow(t *testing.T) {
 
 	tcp.lines <- model.IngestEnvelope{
 		Source: "tcp",
-		Line:   `{"level":30,"msg":"json from tcp","service":"payments"}`,
+		Line:   `{"timeUnixNano":"1761238800000000000","severityText":"Info","body":{"stringValue":"json from tcp"},"attributes":[{"key":"service.name","value":{"stringValue":"payments"}}]}`,
 	}
 	stdin.lines <- model.IngestEnvelope{
 		Source: "stdin",
-		Line:   "ERROR: plain text from stdin",
+		Line:   `{"timeUnixNano":"1761238801000000000","severityText":"Error","body":{"stringValue":"otel from stdin"},"attributes":[{"key":"service.name","value":{"stringValue":"stdin-worker"}}]}`,
 	}
 	tcp.Stop()
 	stdin.Stop()
@@ -160,6 +160,9 @@ func TestPipelineIntegration_ParseMode_MultiSourceFlow(t *testing.T) {
 	}
 	if stdinRecord.Level != "ERROR" {
 		t.Fatalf("stdin level = %q, want %q", stdinRecord.Level, "ERROR")
+	}
+	if stdinRecord.Message != "otel from stdin" {
+		t.Fatalf("stdin message = %q, want %q", stdinRecord.Message, "otel from stdin")
 	}
 }
 

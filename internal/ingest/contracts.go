@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	// ProcessorModeParse parses/normalizes JSON and text logs into canonical records.
+	// ProcessorModeParse parses OTEL log payloads into canonical records.
 	ProcessorModeParse = "parse"
 	// ProcessorModePassthrough keeps processing lightweight and skips JSON parsing.
 	ProcessorModePassthrough = "passthrough"

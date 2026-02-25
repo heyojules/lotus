@@ -5,39 +5,6 @@ import (
 	"time"
 )
 
-func TestParseJSONLogEntry_Pino(t *testing.T) {
-	t.Parallel()
-	line := `{"level":30,"time":1705312245000,"msg":"request processed","hostname":"web1","pid":1234,"reqId":"abc"}`
-	entry := ParseJSONLogEntry(line)
-	if entry == nil {
-		t.Fatal("ParseJSONLogEntry returned nil for pino format")
-	}
-	if entry.Level != "INFO" {
-		t.Errorf("severity = %q, want INFO (pino level 30)", entry.Level)
-	}
-	if entry.Message != "request processed" {
-		t.Errorf("message = %q, want 'request processed'", entry.Message)
-	}
-	if entry.Attributes["hostname"] != "web1" {
-		t.Errorf("hostname attr = %q, want 'web1'", entry.Attributes["hostname"])
-	}
-}
-
-func TestParseJSONLogEntry_Winston(t *testing.T) {
-	t.Parallel()
-	line := `{"level":"error","message":"connection refused","timestamp":"2024-01-15T10:30:45.000Z","service":"api"}`
-	entry := ParseJSONLogEntry(line)
-	if entry == nil {
-		t.Fatal("ParseJSONLogEntry returned nil for winston format")
-	}
-	if entry.Level != "ERROR" {
-		t.Errorf("severity = %q, want ERROR", entry.Level)
-	}
-	if entry.Message != "connection refused" {
-		t.Errorf("message = %q, want 'connection refused'", entry.Message)
-	}
-}
-
 func TestParseJSONLogEntry_InvalidJSON(t *testing.T) {
 	t.Parallel()
 	entry := ParseJSONLogEntry("this is not json")
@@ -46,18 +13,110 @@ func TestParseJSONLogEntry_InvalidJSON(t *testing.T) {
 	}
 }
 
-func TestParseJSONLogEntry_AppField(t *testing.T) {
+func TestParseJSONLogEntries_NonOTELJSON(t *testing.T) {
 	t.Parallel()
-	line := `{"msg":"test","_app":"my-api","level":"info"}`
+	entries := ParseJSONLogEntries(`{"level":"info","msg":"legacy payload"}`)
+	if len(entries) != 0 {
+		t.Fatalf("expected no entries for non-OTEL JSON, got %d", len(entries))
+	}
+}
+
+func TestParseJSONLogEntry_OTELLogRecord(t *testing.T) {
+	t.Parallel()
+	line := `{"timeUnixNano":"1739876543210000000","severityText":"Warn","body":{"stringValue":"worker throttled"},"attributes":[{"key":"service.name","value":{"stringValue":"payments"}},{"key":"host.name","value":{"stringValue":"node-1"}}],"traceId":"00112233445566778899aabbccddeeff","spanId":"0011223344556677"}`
+
 	entry := ParseJSONLogEntry(line)
 	if entry == nil {
 		t.Fatal("ParseJSONLogEntry returned nil")
 	}
-	if entry.App != "my-api" {
-		t.Errorf("App = %q, want %q", entry.App, "my-api")
+	if entry.Level != "WARN" {
+		t.Fatalf("Level = %q, want WARN", entry.Level)
 	}
-	if _, exists := entry.Attributes["_app"]; exists {
-		t.Error("_app should not appear in attributes")
+	if entry.Message != "worker throttled" {
+		t.Fatalf("Message = %q, want %q", entry.Message, "worker throttled")
+	}
+	if entry.App != "payments" {
+		t.Fatalf("App = %q, want %q", entry.App, "payments")
+	}
+	if entry.Attributes["service.name"] != "payments" {
+		t.Fatalf("service.name attribute = %q, want %q", entry.Attributes["service.name"], "payments")
+	}
+	if entry.Attributes["trace.id"] == "" {
+		t.Fatal("trace.id attribute should be set from OTEL traceId")
+	}
+	if entry.OrigTimestamp.IsZero() {
+		t.Fatal("OrigTimestamp should be set from timeUnixNano")
+	}
+	if entry.OrigTimestamp.Year() != 2025 {
+		t.Fatalf("OrigTimestamp year = %d, want 2025", entry.OrigTimestamp.Year())
+	}
+}
+
+func TestParseJSONLogEntries_OTELExportEnvelope(t *testing.T) {
+	t.Parallel()
+	line := `{
+		"resourceLogs": [
+			{
+				"resource": {
+					"attributes": [
+						{"key":"service.name","value":{"stringValue":"checkout"}},
+						{"key":"host.name","value":{"stringValue":"node-a"}}
+					]
+				},
+				"scopeLogs": [
+					{
+						"scope": {"name":"ingester","version":"1.2.3"},
+						"logRecords": [
+							{
+								"timeUnixNano":"1739876543210000000",
+								"severityNumber":9,
+								"body":{"stringValue":"first OTEL log"},
+								"attributes":[{"key":"http.method","value":{"stringValue":"GET"}}]
+							},
+							{
+								"timeUnixNano":"1739876544210000000",
+								"severityText":"Error",
+								"body":{"stringValue":"second OTEL log"},
+								"attributes":[{"key":"http.status_code","value":{"intValue":"503"}}]
+							}
+						]
+					}
+				]
+			}
+		]
+	}`
+
+	entries := ParseJSONLogEntries(line)
+	if got := len(entries); got != 2 {
+		t.Fatalf("record count = %d, want 2", got)
+	}
+
+	first := entries[0]
+	if first.Level != "INFO" {
+		t.Fatalf("first level = %q, want INFO", first.Level)
+	}
+	if first.Message != "first OTEL log" {
+		t.Fatalf("first message = %q, want %q", first.Message, "first OTEL log")
+	}
+	if first.Attributes["service.name"] != "checkout" {
+		t.Fatalf("first service.name = %q, want %q", first.Attributes["service.name"], "checkout")
+	}
+	if first.Attributes["otel.scope.name"] != "ingester" {
+		t.Fatalf("first otel.scope.name = %q, want %q", first.Attributes["otel.scope.name"], "ingester")
+	}
+	if first.App != "checkout" {
+		t.Fatalf("first app = %q, want %q", first.App, "checkout")
+	}
+
+	second := entries[1]
+	if second.Level != "ERROR" {
+		t.Fatalf("second level = %q, want ERROR", second.Level)
+	}
+	if second.Message != "second OTEL log" {
+		t.Fatalf("second message = %q, want %q", second.Message, "second OTEL log")
+	}
+	if second.Attributes["http.status_code"] != "503" {
+		t.Fatalf("second http.status_code = %q, want %q", second.Attributes["http.status_code"], "503")
 	}
 }
 
@@ -105,60 +164,6 @@ func TestExtractStringField(t *testing.T) {
 	}
 	if got := ExtractStringField(raw, "nonexistent"); got != "" {
 		t.Errorf("ExtractStringField(nonexistent) = %q, want empty", got)
-	}
-}
-
-func TestExtractLevelFromJSON(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name     string
-		raw      map[string]interface{}
-		expected string
-	}{
-		{"string level", map[string]interface{}{"level": "error"}, "error"},
-		{"numeric level 30", map[string]interface{}{"level": float64(30)}, "INFO"},
-		{"numeric level 50", map[string]interface{}{"level": float64(50)}, "ERROR"},
-		{"severity field", map[string]interface{}{"severity": "warning"}, "warning"},
-		{"no level", map[string]interface{}{"msg": "test"}, "INFO"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			if got := ExtractLevelFromJSON(tt.raw); got != tt.expected {
-				t.Errorf("ExtractLevelFromJSON = %q, want %q", got, tt.expected)
-			}
-		})
-	}
-}
-
-func TestExtractTimestampFromJSON(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name string
-		raw  map[string]interface{}
-		zero bool
-		year int
-	}{
-		{"RFC3339", map[string]interface{}{"timestamp": "2024-01-15T10:30:45Z"}, false, 2024},
-		{"unix seconds", map[string]interface{}{"ts": float64(946684800)}, false, 2000},
-		{"no timestamp", map[string]interface{}{"other": "value"}, true, 0},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			ts := ExtractTimestampFromJSON(tt.raw)
-			if tt.zero && !ts.IsZero() {
-				t.Errorf("expected zero time, got %v", ts)
-			}
-			if !tt.zero && ts.IsZero() {
-				t.Error("expected non-zero time")
-			}
-			if !tt.zero && tt.year != 0 && ts.Year() != tt.year {
-				t.Errorf("year = %d, want %d", ts.Year(), tt.year)
-			}
-		})
 	}
 }
 
@@ -212,18 +217,15 @@ func TestCountJSONDepth(t *testing.T) {
 	}
 }
 
-func TestParseJSONLogEntry_OrigTimestamp(t *testing.T) {
+func TestParseJSONLogEntry_OTELTimestampReceiveTime(t *testing.T) {
 	t.Parallel()
-	line := `{"msg":"test","time":"2024-01-15T10:30:45Z"}`
+	line := `{"timeUnixNano":"1739876543210000000","severityText":"Info","body":{"stringValue":"test"}}`
 	entry := ParseJSONLogEntry(line)
 	if entry == nil {
 		t.Fatal("ParseJSONLogEntry returned nil")
 	}
 	if entry.OrigTimestamp.IsZero() {
-		t.Error("OrigTimestamp should be set from JSON time field")
-	}
-	if entry.OrigTimestamp.Year() != 2024 {
-		t.Errorf("OrigTimestamp year = %d, want 2024", entry.OrigTimestamp.Year())
+		t.Fatal("OrigTimestamp should be set from OTEL timeUnixNano")
 	}
 	if time.Since(entry.Timestamp) > 5*time.Second {
 		t.Error("Timestamp (receive time) should be recent")
