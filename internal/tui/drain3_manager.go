@@ -1,7 +1,7 @@
 package tui
 
 import (
-	"github.com/control-theory/lotus/internal/drain3"
+	"github.com/tinytelemetry/lotus/internal/drain3"
 	"sort"
 	"strings"
 	"time"

@@ -3,7 +3,7 @@ package tui
 import (
 	"strings"
 
-	"github.com/control-theory/lotus/internal/model"
+	"github.com/tinytelemetry/lotus/internal/model"
 )
 
 // SeverityCounts tracks log counts by severity level for a time interval

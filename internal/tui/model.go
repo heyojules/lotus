@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/control-theory/lotus/internal/model"
+	"github.com/tinytelemetry/lotus/internal/model"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"

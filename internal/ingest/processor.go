@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/control-theory/lotus/internal/model"
+	"github.com/tinytelemetry/lotus/internal/model"
 )
 
 // maxJSONBufferSize is the maximum size of accumulated multi-line JSON before

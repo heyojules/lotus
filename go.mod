@@ -1,4 +1,4 @@
-module github.com/control-theory/lotus
+module github.com/tinytelemetry/lotus
 
 go 1.25.0
 

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/control-theory/lotus/internal/model"
-	"github.com/control-theory/lotus/internal/socketrpc"
+	"github.com/tinytelemetry/lotus/internal/model"
+	"github.com/tinytelemetry/lotus/internal/socketrpc"
 	"github.com/spf13/viper"
 )
 

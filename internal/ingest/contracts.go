@@ -1,6 +1,6 @@
 package ingest
 
-import "github.com/control-theory/lotus/internal/model"
+import "github.com/tinytelemetry/lotus/internal/model"
 
 const (
 	// ProcessorNameOTEL is the single processor implementation name.

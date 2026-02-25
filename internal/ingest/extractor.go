@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/control-theory/lotus/internal/logparse"
-	"github.com/control-theory/lotus/internal/model"
+	"github.com/tinytelemetry/lotus/internal/logparse"
+	"github.com/tinytelemetry/lotus/internal/model"
 )
 
 // ParseJSONLogEntries parses one JSON line into one or more LogRecords.

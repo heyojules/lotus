@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/control-theory/lotus/internal/logsource"
-	"github.com/control-theory/lotus/internal/tcpserver"
+	"github.com/tinytelemetry/lotus/internal/logsource"
+	"github.com/tinytelemetry/lotus/internal/tcpserver"
 )
 
 // NamedLogSource aliases the shared source abstraction to keep app-layer APIs explicit.

@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/control-theory/lotus/internal/socketrpc"
+	"github.com/tinytelemetry/lotus/internal/socketrpc"
 
 	"github.com/spf13/viper"
 )

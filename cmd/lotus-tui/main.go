@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/control-theory/lotus/internal/socketrpc"
-	"github.com/control-theory/lotus/internal/tui"
+	"github.com/tinytelemetry/lotus/internal/socketrpc"
+	"github.com/tinytelemetry/lotus/internal/tui"
 
 	tea "github.com/charmbracelet/bubbletea"
 )

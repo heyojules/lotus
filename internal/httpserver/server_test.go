@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/control-theory/lotus/internal/duckdb"
+	"github.com/tinytelemetry/lotus/internal/duckdb"
 	"github.com/gin-gonic/gin"
 )
 

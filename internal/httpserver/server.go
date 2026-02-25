@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/control-theory/lotus/internal/model"
+	"github.com/tinytelemetry/lotus/internal/model"
 	"github.com/gin-gonic/gin"
 )
 

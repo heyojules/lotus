@@ -3,7 +3,7 @@ package tui
 import (
 	"testing"
 
-	"github.com/control-theory/lotus/internal/model"
+	"github.com/tinytelemetry/lotus/internal/model"
 )
 
 func TestNormalizeSeverityLevel(t *testing.T) {

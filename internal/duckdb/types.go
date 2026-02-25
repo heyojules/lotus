@@ -1,6 +1,6 @@
 package duckdb
 
-import "github.com/control-theory/lotus/internal/model"
+import "github.com/tinytelemetry/lotus/internal/model"
 
 // Type aliases re-export model types so existing duckdb.Store method
 // signatures remain valid without changing every call site at once.

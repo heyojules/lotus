@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/control-theory/lotus/internal/model"
+	"github.com/tinytelemetry/lotus/internal/model"
 )
 
 // Client implements model.LogQuerier over a Unix domain socket using JSON-RPC 2.0.

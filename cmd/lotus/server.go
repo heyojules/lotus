@@ -11,13 +11,13 @@ import (
 	"syscall"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/control-theory/lotus/internal/backup"
-	"github.com/control-theory/lotus/internal/duckdb"
-	"github.com/control-theory/lotus/internal/httpserver"
-	"github.com/control-theory/lotus/internal/ingest"
-	"github.com/control-theory/lotus/internal/journal"
-	"github.com/control-theory/lotus/internal/model"
-	"github.com/control-theory/lotus/internal/socketrpc"
+	"github.com/tinytelemetry/lotus/internal/backup"
+	"github.com/tinytelemetry/lotus/internal/duckdb"
+	"github.com/tinytelemetry/lotus/internal/httpserver"
+	"github.com/tinytelemetry/lotus/internal/ingest"
+	"github.com/tinytelemetry/lotus/internal/journal"
+	"github.com/tinytelemetry/lotus/internal/model"
+	"github.com/tinytelemetry/lotus/internal/socketrpc"
 	"golang.org/x/sync/errgroup"
 )
 

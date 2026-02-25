@@ -17,13 +17,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/control-theory/lotus/internal/duckdb"
-	"github.com/control-theory/lotus/internal/httpserver"
-	"github.com/control-theory/lotus/internal/ingest"
-	"github.com/control-theory/lotus/internal/logsource"
-	"github.com/control-theory/lotus/internal/model"
-	"github.com/control-theory/lotus/internal/socketrpc"
-	"github.com/control-theory/lotus/internal/tcpserver"
+	"github.com/tinytelemetry/lotus/internal/duckdb"
+	"github.com/tinytelemetry/lotus/internal/httpserver"
+	"github.com/tinytelemetry/lotus/internal/ingest"
+	"github.com/tinytelemetry/lotus/internal/logsource"
+	"github.com/tinytelemetry/lotus/internal/model"
+	"github.com/tinytelemetry/lotus/internal/socketrpc"
+	"github.com/tinytelemetry/lotus/internal/tcpserver"
 )
 
 type e2eConfig struct {

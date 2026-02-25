@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/control-theory/lotus/internal/ingest"
-	"github.com/control-theory/lotus/internal/model"
+	"github.com/tinytelemetry/lotus/internal/ingest"
+	"github.com/tinytelemetry/lotus/internal/model"
 )
 
 type fakeSource struct {

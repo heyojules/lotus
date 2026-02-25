@@ -1,7 +1,7 @@
 package logsource
 
-import "github.com/control-theory/lotus/internal/tcpserver"
-import "github.com/control-theory/lotus/internal/model"
+import "github.com/tinytelemetry/lotus/internal/tcpserver"
+import "github.com/tinytelemetry/lotus/internal/model"
 
 // TCPSource wraps a tcpserver.Server as a LogSource.
 type TCPSource struct {
