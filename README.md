@@ -6,7 +6,7 @@
 <p align="center"><strong>Tiny, standards-based telemetry tool for agents, built from first principles</strong></p>
 
 <p align="center">
-  Imperative for developer, declarative for agent.
+  <em>"Imperative for user, declarative for agent."</em>
 </p>
 
 > [!WARNING]
