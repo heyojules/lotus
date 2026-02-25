@@ -19,7 +19,7 @@ Lotus is a thin layer that ingests telemetry/analytics, stores them in DuckDB, a
 
 **Design principles:**
 
-- **Standards first** — default and always backwards-compatible with standards.
+- **Standards first** — backwards compatibility with standards is the default
 - **Zero friction** — drop the binary, pipe your output, done
 - **Agent-first** — the HTTP API is the primary read surface, designed for autonomous programmatic access
 - **Minimal by intent** — keep only essential ingestion, storage, and query surfaces
