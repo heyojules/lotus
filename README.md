@@ -3,10 +3,10 @@
 </p>
 
 <h1 align="center">Lotus</h1>
-<p align="center"><strong>Standards-based tiny telemetry tool for agents</strong></p>
+<p align="center"><strong>Tiny telemetry tool built on standards for agents, from first principles</strong></p>
 
 <p align="center">
-  Drop-in. Zero config. Built for agents.
+  Imperative for developer, declarative for agent.
 </p>
 
 > [!WARNING]
@@ -16,7 +16,6 @@
 
 Lotus is a thin observability layer that ingests logs, stores them in DuckDB, and exposes a read-only HTTP API queryable by AI agents and scripts. A TUI dashboard (`lotus-tui`) is included for humans.
 
-Ship it, see what happened — no context-switching, no separate stack, no setup friction.
 
 **Design principles:**
 
