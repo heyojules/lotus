@@ -195,7 +195,7 @@ func configureRuntimeLogger() func() {
 	}
 }
 
-func printStartupBanner(cfg appConfig, hasSources bool, processorName string) {
+func printStartupBanner(cfg appConfig, _ bool, processorName string) {
 	dim := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 	green := lipgloss.NewStyle().Foreground(lipgloss.Color("42"))
 	cyan := lipgloss.NewStyle().Foreground(lipgloss.Color("39"))
@@ -222,8 +222,8 @@ func printStartupBanner(cfg appConfig, hasSources bool, processorName string) {
 	lines = append(lines, separator)
 	lines = append(lines, "")
 
-	// Services
-	lines = append(lines, bold.Render("    Services"))
+	// Gateway
+	lines = append(lines, bold.Render("    Gateway"))
 	lines = append(lines, "")
 
 	if cfg.APIEnabled {
@@ -239,18 +239,25 @@ func printStartupBanner(cfg appConfig, hasSources bool, processorName string) {
 	}
 
 	lines = append(lines, fmt.Sprintf("    %s  Unix Socket    %s", check, cyan.Render(shortenPath(cfg.SocketPath))))
-	lines = append(lines, fmt.Sprintf("    %s  DuckDB         %s", check, dim.Render(shortenPath(cfg.DBPath))))
+	lines = append(lines, "")
+
+	// Storage
+	lines = append(lines, bold.Render("    Storage"))
+	lines = append(lines, "")
+
+	lines = append(lines, fmt.Sprintf("    %s  Storage        %s", check, dim.Render(shortenPath(cfg.DBPath))))
 	if cfg.BackupEnabled {
-		lines = append(lines, fmt.Sprintf("    %s  Backups        %s", check, dim.Render(shortenPath(cfg.BackupLocalDir))))
+		lines = append(lines, fmt.Sprintf("    %s  Snapshots      %s", check, dim.Render(shortenPath(cfg.BackupLocalDir))))
 	} else {
-		lines = append(lines, fmt.Sprintf("    %s  Backups        %s", dot, dim.Render("disabled")))
+		lines = append(lines, fmt.Sprintf("    %s  Snapshots      %s", dot, dim.Render("disabled")))
 	}
 
-	if hasSources {
-		lines = append(lines, fmt.Sprintf("    %s  Log Sources    %s", check, dim.Render("connected")))
-	} else {
-		lines = append(lines, fmt.Sprintf("    %s  Log Sources    %s", dot, dim.Render("waiting")))
-	}
+	lines = append(lines, "")
+
+	// Runtime
+	lines = append(lines, bold.Render("    Runtime"))
+	lines = append(lines, "")
+
 	lines = append(lines, fmt.Sprintf("    %s  Processor      %s", check, dim.Render(processorName)))
 
 	lines = append(lines, "")
