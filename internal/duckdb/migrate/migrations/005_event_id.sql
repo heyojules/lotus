@@ -1,0 +1,2 @@
+ALTER TABLE logs ADD COLUMN IF NOT EXISTS event_id VARCHAR;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_logs_event_id ON logs(event_id);

@@ -19,6 +19,7 @@ const (
 	defaultInsertBatchSize     = 2000
 	defaultInsertFlushInterval = 100 * time.Millisecond
 	defaultInsertFlushQueue    = 64
+	defaultJournalEnabled      = true
 	defaultLogRetention        = 30 // days, 0 = disabled
 	defaultBackupInterval      = 6 * time.Hour
 	defaultBackupKeepLast      = 24
@@ -50,6 +51,8 @@ type appConfig struct {
 	InsertBatchSize      int           `mapstructure:"insert-batch-size"`
 	InsertFlushInterval  time.Duration `mapstructure:"insert-flush-interval"`
 	InsertFlushQueue     int           `mapstructure:"insert-flush-queue-size"`
+	JournalEnabled       bool          `mapstructure:"journal-enabled"`
+	JournalPath          string        `mapstructure:"journal-path"`
 	SocketPath           string        `mapstructure:"socket-path"`
 	LogRetention         int           `mapstructure:"log-retention"`
 	BackupEnabled        bool          `mapstructure:"backup-enabled"`

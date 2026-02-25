@@ -548,7 +548,8 @@ func (s *Store) GetSchemaDescription() string {
 	return `Table 'logs': id (BIGINT), timestamp (TIMESTAMP), orig_timestamp (TIMESTAMP), ` +
 		`level (VARCHAR: TRACE/DEBUG/INFO/WARN/ERROR/FATAL), level_num (INTEGER), ` +
 		`message (VARCHAR), raw_line (VARCHAR), service (VARCHAR), hostname (VARCHAR), ` +
-		`pid (INTEGER), attributes (JSON), source (VARCHAR: tcp/stdin/file), app (VARCHAR).`
+		`pid (INTEGER), attributes (JSON), source (VARCHAR: tcp/stdin/file), app (VARCHAR), ` +
+		`event_id (VARCHAR, replay-stable id for dedupe).`
 }
 
 // TableRowCounts returns the row count for each known table using a hardcoded allowlist.

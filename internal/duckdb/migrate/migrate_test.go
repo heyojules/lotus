@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"testing"
 
-	_ "github.com/marcboeker/go-duckdb"
+	_ "github.com/duckdb/duckdb-go/v2"
 )
 
 func openTestDB(t *testing.T) *sql.DB {
@@ -50,8 +50,8 @@ func TestRunIsIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Status: %v", err)
 	}
-	if cur != 4 || pending != 0 {
-		t.Errorf("expected version=4 pending=0, got version=%d pending=%d", cur, pending)
+	if cur != 5 || pending != 0 {
+		t.Errorf("expected version=5 pending=0, got version=%d pending=%d", cur, pending)
 	}
 }
 
@@ -64,8 +64,8 @@ func TestStatusReportsCorrectly(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Status: %v", err)
 	}
-	if cur != 0 || pending != 4 {
-		t.Errorf("before run: expected version=0 pending=4, got version=%d pending=%d", cur, pending)
+	if cur != 0 || pending != 5 {
+		t.Errorf("before run: expected version=0 pending=5, got version=%d pending=%d", cur, pending)
 	}
 
 	// After running
@@ -76,7 +76,7 @@ func TestStatusReportsCorrectly(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Status: %v", err)
 	}
-	if cur != 4 || pending != 0 {
-		t.Errorf("after run: expected version=4 pending=0, got version=%d pending=%d", cur, pending)
+	if cur != 5 || pending != 0 {
+		t.Errorf("after run: expected version=5 pending=0, got version=%d pending=%d", cur, pending)
 	}
 }

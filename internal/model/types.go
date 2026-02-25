@@ -17,6 +17,7 @@ type LogRecord struct {
 	Attributes    map[string]string
 	Source        string // "tcp", "stdin"
 	App           string // application name, defaults to "default"
+	EventID       string // internal unique id for dedupe-safe replay
 }
 
 // WordCount represents a word and its frequency count.

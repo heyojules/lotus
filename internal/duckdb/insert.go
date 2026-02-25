@@ -1,6 +1,7 @@
 package duckdb
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -8,24 +9,39 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/control-theory/lotus/internal/journal"
 	"github.com/control-theory/lotus/internal/model"
 )
 
 // DefaultFlushQueueSize is the number of batches that can be queued for async flushing.
 const DefaultFlushQueueSize = 64
 
+var eventIDCounter atomic.Uint64
+
+type journaledRecord struct {
+	seq    uint64
+	record *LogRecord
+}
+
+type durableJournal interface {
+	Append(record *model.LogRecord) (uint64, error)
+	Commit(seq uint64) error
+	Close() error
+}
+
 // InsertBuffer batches log records and flushes them to DuckDB asynchronously.
 // Add() never blocks on DuckDB writes - records are sent to a flush goroutine.
 type InsertBuffer struct {
 	writer        model.LogWriter
 	mu            sync.Mutex
-	pending       []*LogRecord
-	flushChan     chan []*LogRecord // async flush queue
+	pending       []journaledRecord
+	flushChan     chan []journaledRecord // async flush queue
 	maxBatch      int
 	flushInterval time.Duration
 	done          chan struct{}
 	wg            sync.WaitGroup
 	tickWg        sync.WaitGroup // separate WaitGroup for tickLoop
+	journal       durableJournal
 
 	// backpressureCount tracks inline flushes for throttled logging.
 	backpressureCount atomic.Int64
@@ -37,6 +53,7 @@ type InsertBufferConfig struct {
 	BatchSize      int
 	FlushInterval  time.Duration
 	FlushQueueSize int
+	Journal        *journal.Journal
 }
 
 // NewInsertBuffer creates a new insert buffer that flushes to the store.
@@ -59,11 +76,14 @@ func NewInsertBuffer(writer model.LogWriter, conf ...InsertBufferConfig) *Insert
 
 	b := &InsertBuffer{
 		writer:        writer,
-		pending:       make([]*LogRecord, 0, batchSize),
-		flushChan:     make(chan []*LogRecord, flushQueueSize),
+		pending:       make([]journaledRecord, 0, batchSize),
+		flushChan:     make(chan []journaledRecord, flushQueueSize),
 		maxBatch:      batchSize,
 		flushInterval: flushInterval,
 		done:          make(chan struct{}),
+	}
+	if len(conf) > 0 && conf[0].Journal != nil {
+		b.journal = conf[0].Journal
 	}
 
 	b.wg.Add(1)
@@ -113,7 +133,7 @@ func (b *InsertBuffer) drainPending() {
 		return
 	}
 	batch := b.pending
-	b.pending = make([]*LogRecord, 0, b.maxBatch)
+	b.pending = make([]journaledRecord, 0, b.maxBatch)
 	b.mu.Unlock()
 
 	// Non-blocking send to flush channel. If channel is full, flush synchronously
@@ -122,7 +142,7 @@ func (b *InsertBuffer) drainPending() {
 	case b.flushChan <- batch:
 	default:
 		b.logBackpressure()
-		if err := b.writer.InsertLogBatch(batch); err != nil {
+		if err := b.flushBatch(batch); err != nil {
 			log.Printf("duckdb flush error (inline): %v", err)
 		}
 	}
@@ -132,7 +152,7 @@ func (b *InsertBuffer) drainPending() {
 func (b *InsertBuffer) flushWorker() {
 	defer b.wg.Done()
 	for batch := range b.flushChan {
-		if err := b.writer.InsertLogBatch(batch); err != nil {
+		if err := b.flushBatch(batch); err != nil {
 			log.Printf("duckdb flush error: %v", err)
 		}
 	}
@@ -140,13 +160,37 @@ func (b *InsertBuffer) flushWorker() {
 
 // Add queues a record for batch insertion. This never blocks on DuckDB IO.
 func (b *InsertBuffer) Add(record *LogRecord) {
+	if record.EventID == "" {
+		record.EventID = nextEventID()
+	}
+
+	seq := uint64(0)
+	if b.journal != nil {
+		for {
+			var err error
+			seq, err = b.journal.Append(record)
+			if err == nil {
+				break
+			}
+			log.Printf("duckdb: journal append failed, retrying: %v", err)
+			select {
+			case <-b.done:
+				return
+			case <-time.After(200 * time.Millisecond):
+			}
+		}
+	}
+
 	b.mu.Lock()
-	b.pending = append(b.pending, record)
+	b.pending = append(b.pending, journaledRecord{
+		seq:    seq,
+		record: record,
+	})
 	shouldFlush := len(b.pending) >= b.maxBatch
-	var batch []*LogRecord
+	var batch []journaledRecord
 	if shouldFlush {
 		batch = b.pending
-		b.pending = make([]*LogRecord, 0, b.maxBatch)
+		b.pending = make([]journaledRecord, 0, b.maxBatch)
 	}
 	b.mu.Unlock()
 
@@ -157,7 +201,7 @@ func (b *InsertBuffer) Add(record *LogRecord) {
 			// Backpressure safety valve: flush inline instead of spawning
 			// unbounded goroutines under sustained overload.
 			b.logBackpressure()
-			if err := b.writer.InsertLogBatch(batch); err != nil {
+			if err := b.flushBatch(batch); err != nil {
 				log.Printf("duckdb flush error (overflow-inline): %v", err)
 			}
 		}
@@ -172,6 +216,41 @@ func (b *InsertBuffer) Stop() {
 	b.tickWg.Wait()
 	close(b.flushChan)
 	b.wg.Wait()
+	if b.journal != nil {
+		if err := b.journal.Close(); err != nil {
+			log.Printf("duckdb: journal close error: %v", err)
+		}
+	}
+}
+
+func (b *InsertBuffer) flushBatch(batch []journaledRecord) error {
+	if len(batch) == 0 {
+		return nil
+	}
+
+	records := make([]*LogRecord, 0, len(batch))
+	for _, item := range batch {
+		records = append(records, item.record)
+	}
+
+	if err := b.writer.InsertLogBatch(records); err != nil {
+		return err
+	}
+
+	if b.journal != nil {
+		maxSeq := uint64(0)
+		for _, item := range batch {
+			if item.seq > maxSeq {
+				maxSeq = item.seq
+			}
+		}
+		if maxSeq > 0 {
+			if err := b.journal.Commit(maxSeq); err != nil {
+				return fmt.Errorf("journal commit seq=%d: %w", maxSeq, err)
+			}
+		}
+	}
+	return nil
 }
 
 // InsertLogBatch appends a batch of raw log records into DuckDB in a single transaction.
@@ -182,10 +261,13 @@ func (s *Store) InsertLogBatch(records []*LogRecord) error {
 		return nil
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), s.QueryTimeout)
+	defer cancel()
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	err := s.insertBatchTx(records)
+	err := s.insertBatchTx(ctx, records)
 	if err == nil {
 		return nil
 	}
@@ -193,7 +275,7 @@ func (s *Store) InsertLogBatch(records []*LogRecord) error {
 	// Batch failed — retry record-by-record to salvage what we can.
 	var failed int
 	for _, r := range records {
-		if rerr := s.insertBatchTx([]*LogRecord{r}); rerr != nil {
+		if rerr := s.insertBatchTx(ctx, []*LogRecord{r}); rerr != nil {
 			failed++
 			log.Printf("duckdb: dropping record (service=%s msg=%.80s): %v", r.Service, r.Message, rerr)
 		}
@@ -205,8 +287,8 @@ func (s *Store) InsertLogBatch(records []*LogRecord) error {
 }
 
 // insertBatchTx inserts records in a single transaction.
-func (s *Store) insertBatchTx(records []*LogRecord) error {
-	tx, err := s.db.Begin()
+func (s *Store) insertBatchTx(ctx context.Context, records []*LogRecord) error {
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
@@ -217,7 +299,7 @@ func (s *Store) insertBatchTx(records []*LogRecord) error {
 		}
 	}()
 
-	logStmt, err := tx.Prepare(`INSERT INTO logs (timestamp, orig_timestamp, level, level_num, message, raw_line, service, hostname, pid, attributes, source, app) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+	logStmt, err := tx.PrepareContext(ctx, `INSERT INTO logs (timestamp, orig_timestamp, level, level_num, message, raw_line, service, hostname, pid, attributes, source, app, event_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		return err
 	}
@@ -242,11 +324,16 @@ func (s *Store) insertBatchTx(records []*LogRecord) error {
 		if app == "" {
 			app = "default"
 		}
+		eventID := r.EventID
+		if eventID == "" {
+			eventID = nextEventID()
+		}
 
-		if _, err := logStmt.Exec(
+		if _, err := logStmt.ExecContext(
+			ctx,
 			r.Timestamp, origTS, r.Level, r.LevelNum,
 			r.Message, r.RawLine, r.Service, r.Hostname,
-			r.PID, string(attrsJSON), r.Source, app,
+			r.PID, string(attrsJSON), r.Source, app, eventID,
 		); err != nil {
 			return fmt.Errorf("record insert: %w", err)
 		}
@@ -257,4 +344,9 @@ func (s *Store) insertBatchTx(records []*LogRecord) error {
 	}
 	committed = true
 	return nil
+}
+
+func nextEventID() string {
+	n := eventIDCounter.Add(1)
+	return fmt.Sprintf("%x-%x", time.Now().UTC().UnixNano(), n)
 }

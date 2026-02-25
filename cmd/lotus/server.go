@@ -15,6 +15,8 @@ import (
 	"github.com/control-theory/lotus/internal/duckdb"
 	"github.com/control-theory/lotus/internal/httpserver"
 	"github.com/control-theory/lotus/internal/ingest"
+	"github.com/control-theory/lotus/internal/journal"
+	"github.com/control-theory/lotus/internal/model"
 	"github.com/control-theory/lotus/internal/socketrpc"
 	"golang.org/x/sync/errgroup"
 )
@@ -32,11 +34,25 @@ func runServer(cfg appConfig) error {
 	defer store.Close()
 	store.SetMaxConcurrentQueries(cfg.MaxConcurrentReads)
 
+	// Open local ingest journal for crash-safe replay and durable buffering.
+	var ingestJournal *journal.Journal
+	if cfg.JournalEnabled {
+		ingestJournal, err = journal.Open(cfg.JournalPath)
+		if err != nil {
+			return fmt.Errorf("failed to open ingest journal: %w", err)
+		}
+		if err := replayUncommittedJournal(ingestJournal, store, cfg.InsertBatchSize); err != nil {
+			_ = ingestJournal.Close()
+			return fmt.Errorf("failed to replay ingest journal: %w", err)
+		}
+	}
+
 	// Create insert buffer for batched DuckDB writes
 	insertBuffer := duckdb.NewInsertBuffer(store, duckdb.InsertBufferConfig{
 		BatchSize:      cfg.InsertBatchSize,
 		FlushInterval:  cfg.InsertFlushInterval,
 		FlushQueueSize: cfg.InsertFlushQueue,
+		Journal:        ingestJournal,
 	})
 	defer insertBuffer.Stop()
 
@@ -193,6 +209,59 @@ func configureRuntimeLogger() func() {
 	return func() {
 		_ = f.Close()
 	}
+}
+
+func replayUncommittedJournal(j *journal.Journal, store *duckdb.Store, batchSize int) error {
+	if j == nil {
+		return nil
+	}
+	if batchSize <= 0 {
+		batchSize = defaultInsertBatchSize
+	}
+
+	batch := make([]*duckdb.LogRecord, 0, batchSize)
+	batchMaxSeq := uint64(0)
+	replayed := 0
+
+	flush := func() error {
+		if len(batch) == 0 {
+			return nil
+		}
+		if err := store.InsertLogBatch(batch); err != nil {
+			return err
+		}
+		if batchMaxSeq > 0 {
+			if err := j.Commit(batchMaxSeq); err != nil {
+				return err
+			}
+		}
+		replayed += len(batch)
+		batch = make([]*duckdb.LogRecord, 0, batchSize)
+		batchMaxSeq = 0
+		return nil
+	}
+
+	if err := j.Replay(func(seq uint64, record *model.LogRecord) error {
+		copied := *record
+		batch = append(batch, &copied)
+		if seq > batchMaxSeq {
+			batchMaxSeq = seq
+		}
+		if len(batch) >= batchSize {
+			return flush()
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	if err := flush(); err != nil {
+		return err
+	}
+	if replayed > 0 {
+		log.Printf("ingest journal: replayed %d uncommitted records", replayed)
+	}
+	return nil
 }
 
 func printStartupBanner(cfg appConfig, _ bool, processorName string) {

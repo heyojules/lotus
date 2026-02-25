@@ -68,6 +68,7 @@ func loadConfig(configPath string) (appConfig, error) {
 
 	defaultDBPath := filepath.Join(home, ".local", "share", "lotus", "lotus.duckdb")
 	defaultBackupDir := filepath.Join(home, ".local", "share", "lotus", "backups")
+	defaultJournalPath := filepath.Join(home, ".local", "state", "lotus", "ingest.journal")
 
 	v := viper.New()
 	v.SetEnvPrefix("LOTUS")
@@ -94,6 +95,8 @@ func loadConfig(configPath string) (appConfig, error) {
 	v.SetDefault("insert-batch-size", defaultInsertBatchSize)
 	v.SetDefault("insert-flush-interval", defaultInsertFlushInterval)
 	v.SetDefault("insert-flush-queue-size", defaultInsertFlushQueue)
+	v.SetDefault("journal-enabled", defaultJournalEnabled)
+	v.SetDefault("journal-path", defaultJournalPath)
 	v.SetDefault("socket-path", socketrpc.DefaultSocketPath())
 	v.SetDefault("log-retention", defaultLogRetention)
 	v.SetDefault("backup-enabled", false)
@@ -153,6 +156,9 @@ func loadConfig(configPath string) (appConfig, error) {
 	}
 	if strings.HasPrefix(cfg.BackupLocalDir, "~/") {
 		cfg.BackupLocalDir = filepath.Join(home, cfg.BackupLocalDir[2:])
+	}
+	if strings.HasPrefix(cfg.JournalPath, "~/") {
+		cfg.JournalPath = filepath.Join(home, cfg.JournalPath[2:])
 	}
 	if cfg.BackupEnabled && cfg.DBPath == "" {
 		return cfg, fmt.Errorf("backup-enabled requires on-disk db-path")

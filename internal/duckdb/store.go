@@ -1,14 +1,17 @@
 package duckdb
 
 import (
+	"context"
 	"database/sql"
+	"database/sql/driver"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
 
 	"github.com/control-theory/lotus/internal/duckdb/migrate"
-	_ "github.com/marcboeker/go-duckdb"
+	duckdb "github.com/duckdb/duckdb-go/v2"
 )
 
 // Store manages the DuckDB database connection and provides query methods.
@@ -34,8 +37,25 @@ func NewStore(dbPath string, queryTimeout ...time.Duration) (*Store, error) {
 		dsn = dbPath
 	}
 
-	db, err := sql.Open("duckdb", dsn)
+	connector, err := duckdb.NewConnector(dsn, func(execer driver.ExecerContext) error {
+		bootQueries := []string{
+			`SET schema = 'main'`,
+			`SET search_path = 'main'`,
+		}
+		for _, query := range bootQueries {
+			if _, err := execer.ExecContext(context.Background(), query, nil); err != nil {
+				return fmt.Errorf("duckdb connector init query %q failed: %w", query, err)
+			}
+		}
+		return nil
+	})
 	if err != nil {
+		return nil, err
+	}
+
+	db := sql.OpenDB(connector)
+	if err := db.Ping(); err != nil {
+		_ = db.Close()
 		return nil, err
 	}
 
