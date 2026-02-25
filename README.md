@@ -14,12 +14,12 @@
 
 ## Why Lotus exists
 
-Lotus is a thin observability layer that ingests logs, stores them in DuckDB, and exposes a read-only HTTP API queryable by AI agents and scripts. A TUI dashboard (`lotus-tui`) is included for humans.
+Lotus is a thin layer that ingests telemetry/analytics, stores them in DuckDB, and exposes a read-only HTTP API queryable by AI agents and scripts. A TUI dashboard (`lotus-tui`) is included for humans.
 
 
 **Design principles:**
 
-- **Standards first** — OTEL log data model by default, no custom vendor schema
+- **Standards first** — default and always backwards-compatible with standards.
 - **Zero friction** — drop the binary, pipe your output, done
 - **Agent-first** — the HTTP API is the primary read surface, designed for autonomous programmatic access
 - **Minimal by intent** — keep only essential ingestion, storage, and query surfaces
@@ -34,8 +34,8 @@ Input Plugins          Processing              Storage              Read Surface
 ─────────────       ──────────────          ─────────────       ─────────────────
 
   TCP:4000  ──┐     ┌─ Processor ─┐        ┌───────────┐        ┌─ HTTP API
-              ├──→  │  parse +    │──→     │  DuckDB   │──→     │  (agents, scripts)
-  stdin     ──┘     │  OTEL logs  │        │           │        └──────────────
+              ├──→  │  + parser   │──→     │  DuckDB   │──→     │  (agents, scripts)
+  stdin     ──┘     │             │        │           │        └──────────────
      ↑              └─────────────┘        │           │        ┌─ Socket RPC
      │                    ↓                │           │──→     │  (lotus-tui)
   SourceMux          InsertBuffer          │           │        └──────────────
