@@ -137,11 +137,8 @@ func runServer(cfg appConfig) error {
 	mux := NewSourceMultiplexer(ctx, sources, cfg.MuxBufferSize)
 	mux.Start()
 
-	// Create the configured envelope processor.
-	processor, err := ingest.NewEnvelopeProcessor(cfg.Processor, insertBuffer, "")
-	if err != nil {
-		return fmt.Errorf("build processor: %w", err)
-	}
+	// OTEL is the single supported processing path.
+	processor := ingest.NewEnvelopeProcessor(insertBuffer, "")
 
 	printStartupBanner(cfg, mux.HasSources(), processor.Name())
 

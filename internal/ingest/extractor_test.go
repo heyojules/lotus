@@ -32,6 +32,9 @@ func TestParseJSONLogEntry_OTELLogRecord(t *testing.T) {
 	if entry.Level != "WARN" {
 		t.Fatalf("Level = %q, want WARN", entry.Level)
 	}
+	if entry.LevelNum != 13 {
+		t.Fatalf("LevelNum = %d, want 13", entry.LevelNum)
+	}
 	if entry.Message != "worker throttled" {
 		t.Fatalf("Message = %q, want %q", entry.Message, "worker throttled")
 	}
@@ -95,6 +98,9 @@ func TestParseJSONLogEntries_OTELExportEnvelope(t *testing.T) {
 	if first.Level != "INFO" {
 		t.Fatalf("first level = %q, want INFO", first.Level)
 	}
+	if first.LevelNum != 9 {
+		t.Fatalf("first level_num = %d, want 9", first.LevelNum)
+	}
 	if first.Message != "first OTEL log" {
 		t.Fatalf("first message = %q, want %q", first.Message, "first OTEL log")
 	}
@@ -112,36 +118,14 @@ func TestParseJSONLogEntries_OTELExportEnvelope(t *testing.T) {
 	if second.Level != "ERROR" {
 		t.Fatalf("second level = %q, want ERROR", second.Level)
 	}
+	if second.LevelNum != 17 {
+		t.Fatalf("second level_num = %d, want 17", second.LevelNum)
+	}
 	if second.Message != "second OTEL log" {
 		t.Fatalf("second message = %q, want %q", second.Message, "second OTEL log")
 	}
 	if second.Attributes["http.status_code"] != "503" {
 		t.Fatalf("second http.status_code = %q, want %q", second.Attributes["http.status_code"], "503")
-	}
-}
-
-func TestCreateFallbackLogEntry(t *testing.T) {
-	t.Parallel()
-	entry := CreateFallbackLogEntry("2024-01-15 ERROR: connection refused")
-	if entry == nil {
-		t.Fatal("CreateFallbackLogEntry returned nil")
-	}
-	if entry.Level != "ERROR" {
-		t.Errorf("severity = %q, want ERROR", entry.Level)
-	}
-	if entry.App != "default" {
-		t.Errorf("App = %q, want %q", entry.App, "default")
-	}
-}
-
-func TestCreateFallbackLogEntry_CleansTabs(t *testing.T) {
-	t.Parallel()
-	entry := CreateFallbackLogEntry("message\twith\ttabs\nand\nnewlines")
-	if entry == nil {
-		t.Fatal("CreateFallbackLogEntry returned nil")
-	}
-	if entry.Message != "message with tabs and newlines" {
-		t.Errorf("message = %q, should have tabs/newlines replaced", entry.Message)
 	}
 }
 
@@ -226,6 +210,9 @@ func TestParseJSONLogEntry_OTELTimestampReceiveTime(t *testing.T) {
 	}
 	if entry.OrigTimestamp.IsZero() {
 		t.Fatal("OrigTimestamp should be set from OTEL timeUnixNano")
+	}
+	if entry.LevelNum != 9 {
+		t.Fatalf("LevelNum = %d, want 9", entry.LevelNum)
 	}
 	if time.Since(entry.Timestamp) > 5*time.Second {
 		t.Error("Timestamp (receive time) should be recent")

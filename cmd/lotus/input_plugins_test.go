@@ -45,7 +45,7 @@ func TestBuildInputPlugins_TCPDisabled(t *testing.T) {
 	}
 }
 
-func TestLoadConfig_AddressResolutionAndProcessorModes(t *testing.T) {
+func TestLoadConfig_AddressResolution(t *testing.T) {
 	resetLotusEnv(t)
 
 	tests := []struct {
@@ -55,11 +55,10 @@ func TestLoadConfig_AddressResolutionAndProcessorModes(t *testing.T) {
 		wantHost     string
 		wantTCPAddr  string
 		wantAPIAddr  string
-		wantMode     string
 		errSubstring string
 	}{
 		{
-			name: "defaults to localhost host and parse mode",
+			name: "defaults to localhost host",
 			configYAML: `
 tcp-port: 4100
 api-port: 3100
@@ -67,26 +66,22 @@ api-port: 3100
 			wantHost:    "127.0.0.1",
 			wantTCPAddr: "127.0.0.1:4100",
 			wantAPIAddr: "127.0.0.1:3100",
-			wantMode:    "parse",
 		},
 		{
 			name: "host applies to derived tcp and api addresses",
 			configYAML: `
 host: 0.0.0.0
-processor: passthrough
 tcp-port: 4200
 api-port: 3200
 `,
 			wantHost:    "0.0.0.0",
 			wantTCPAddr: "0.0.0.0:4200",
 			wantAPIAddr: "0.0.0.0:3200",
-			wantMode:    "passthrough",
 		},
 		{
 			name: "explicit addresses override host and ports",
 			configYAML: `
 host: 0.0.0.0
-processor: parse
 tcp-port: 4300
 api-port: 3300
 tcp-addr: 10.0.0.5:9999
@@ -95,17 +90,6 @@ api-addr: 10.0.0.5:8888
 			wantHost:    "0.0.0.0",
 			wantTCPAddr: "10.0.0.5:9999",
 			wantAPIAddr: "10.0.0.5:8888",
-			wantMode:    "parse",
-		},
-		{
-			name: "invalid processor mode rejected",
-			configYAML: `
-processor: fastpath
-tcp-port: 4400
-api-port: 3400
-`,
-			wantErr:      true,
-			errSubstring: "invalid processor mode",
 		},
 	}
 
@@ -135,9 +119,6 @@ api-port: 3400
 			}
 			if cfg.APIAddr != tt.wantAPIAddr {
 				t.Fatalf("APIAddr = %q, want %q", cfg.APIAddr, tt.wantAPIAddr)
-			}
-			if cfg.Processor != tt.wantMode {
-				t.Fatalf("Processor = %q, want %q", cfg.Processor, tt.wantMode)
 			}
 		})
 	}

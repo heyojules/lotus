@@ -3,7 +3,7 @@
 </p>
 
 <h1 align="center">Lotus</h1>
-<p align="center"><strong>Observation layer for fast-moving product teams</strong></p>
+<p align="center"><strong>Standards-based tiny telemetry tool for agents</strong></p>
 
 <p align="center">
   Drop-in. Zero config. Built for agents.
@@ -16,14 +16,19 @@
 
 Product development moves fastest when technical and product surfaces are unified — when the person building the feature can also see what's happening in production, without context-switching into a separate observability stack or waiting on someone else to set it up.
 
-Lotus is a thin observation layer that closes this gap. It takes in data from TCP streams or stdin, stores everything in DuckDB, and exposes a read-only HTTP API that AI agents and scripts can query directly. There's also a TUI client (`lotus-tui`) for when a human wants a terminal dashboard.
+Lotus is a thin observation layer that closes this gap. It takes in OpenTelemetry (OTEL) log data over TCP streams or stdin, stores everything in DuckDB, and exposes a read-only HTTP API that AI agents and scripts can query directly. There's also a TUI client (`lotus-tui`) for when a human wants a terminal dashboard.
 
 The fewer people and tools standing between "ship it" and "see what happened," the faster you iterate. That's the whole point.
 
+Lotus follows a strict minimal mindset: use only what you need, and nothing else.
+
 **Design principles:**
 
+- **Standards first** — OTEL log data model by default, no custom vendor schema
 - **Zero friction** — drop the binary, pipe your output, done
 - **Agent-first** — the HTTP API is the primary read surface, designed for autonomous programmatic access
+- **Minimal by intent** — keep only essential ingestion, storage, and query surfaces
+- **No noise** — no heavy platform layers, no observability-suite sprawl
 - **Single source of truth** — all state lives in DuckDB, no caches, no secondary stores
 - **Thin by design** — easy to extend with new inputs or read surfaces because there's almost nothing in the way
 
@@ -35,7 +40,7 @@ Input Plugins          Processing              Storage              Read Surface
 
   TCP:4000  ──┐     ┌─ Processor ─┐        ┌───────────┐        ┌─ HTTP API
               ├──→  │  parse +    │──→     │  DuckDB   │──→     │  (agents, scripts)
-  stdin     ──┘     │  normalize  │        │           │        └──────────────
+  stdin     ──┘     │  OTEL logs  │        │           │        └──────────────
      ↑              └─────────────┘        │           │        ┌─ Socket RPC
      │                    ↓                │           │──→     │  (lotus-tui)
   SourceMux          InsertBuffer          │           │        └──────────────
@@ -50,11 +55,17 @@ Input Plugins          Processing              Storage              Read Surface
 your-app 2>&1 | lotus
 ```
 
-**Other machines** — send newline-delimited logs or NDJSON to TCP port `4000`:
+**Other machines** — send newline-delimited OTEL log JSON to TCP port `4000`:
 
 ```yaml
 host: 0.0.0.0
 tcp-port: 4000
+```
+
+Single OTEL log-record example:
+
+```json
+{"timeUnixNano":"1761238800000000000","severityText":"Info","body":{"stringValue":"payment created"},"attributes":[{"key":"service.name","value":{"stringValue":"billing-api"}}]}
 ```
 
 > [!NOTE]

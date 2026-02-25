@@ -69,28 +69,3 @@ func TestExtractSeverityFromText(t *testing.T) {
 		})
 	}
 }
-
-func TestPinoLevelToString(t *testing.T) {
-	tests := []struct {
-		input    int
-		expected string
-	}{
-		// Exact levels
-		{10, "TRACE"}, {20, "DEBUG"}, {30, "INFO"},
-		{40, "WARN"}, {50, "ERROR"}, {60, "FATAL"},
-		// Range-based
-		{5, "TRACE"}, {15, "TRACE"},
-		{25, "DEBUG"}, {35, "INFO"},
-		{45, "WARN"}, {55, "ERROR"},
-		{65, "FATAL"}, {100, "FATAL"},
-	}
-
-	for _, tt := range tests {
-		t.Run("", func(t *testing.T) {
-			got := PinoLevelToString(tt.input)
-			if got != tt.expected {
-				t.Errorf("PinoLevelToString(%d) = %q, want %q", tt.input, got, tt.expected)
-			}
-		})
-	}
-}

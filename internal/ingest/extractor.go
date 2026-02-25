@@ -191,12 +191,17 @@ func parseOTELLogRecord(raw map[string]interface{}, inherited map[string]string,
 	}
 	message = sanitizeLogMessage(message)
 
+	severityNumber := parseOTELSeverityNumber(raw["severityNumber"])
 	severity := ExtractStringField(raw, "severityText")
-	if severity == "" {
-		severity = severityFromOTELNumber(raw["severityNumber"])
+	if severity == "" && severityNumber > 0 {
+		severity = severityFromOTELNumber(severityNumber)
 	}
 	if severity == "" {
 		severity = "INFO"
+	}
+	normalizedSeverity := logparse.NormalizeSeverity(severity)
+	if severityNumber == 0 {
+		severityNumber = defaultOTELSeverityNumber(normalizedSeverity)
 	}
 
 	origTimestamp := extractOTELTimestamp(raw)
@@ -209,7 +214,8 @@ func parseOTELLogRecord(raw map[string]interface{}, inherited map[string]string,
 	return &model.LogRecord{
 		Timestamp:     receiveTime,
 		OrigTimestamp: origTimestamp,
-		Level:         logparse.NormalizeSeverity(severity),
+		Level:         normalizedSeverity,
+		LevelNum:      severityNumber,
 		Message:       message,
 		RawLine:       rawLine,
 		Attributes:    attributes,
@@ -321,25 +327,40 @@ func parseTimeUnixNano(value interface{}) (time.Time, bool) {
 	return time.Time{}, false
 }
 
-func severityFromOTELNumber(value interface{}) string {
-	number := 0
+func parseOTELSeverityNumber(value interface{}) int {
 	switch v := value.(type) {
 	case float64:
-		number = int(v)
+		if v <= 0 {
+			return 0
+		}
+		return int(v)
 	case int:
-		number = v
+		if v <= 0 {
+			return 0
+		}
+		return v
 	case int64:
-		number = int(v)
+		if v <= 0 {
+			return 0
+		}
+		return int(v)
+	case uint64:
+		return int(v)
 	case string:
 		n, err := strconv.Atoi(strings.TrimSpace(v))
 		if err != nil {
-			return ""
+			return 0
 		}
-		number = n
+		if n <= 0 {
+			return 0
+		}
+		return n
 	default:
-		return ""
+		return 0
 	}
+}
 
+func severityFromOTELNumber(number int) string {
 	switch {
 	case number >= 1 && number <= 4:
 		return "TRACE"
@@ -355,6 +376,25 @@ func severityFromOTELNumber(value interface{}) string {
 		return "FATAL"
 	default:
 		return ""
+	}
+}
+
+func defaultOTELSeverityNumber(level string) int {
+	switch logparse.NormalizeSeverity(level) {
+	case "TRACE":
+		return 1
+	case "DEBUG":
+		return 5
+	case "INFO":
+		return 9
+	case "WARN":
+		return 13
+	case "ERROR":
+		return 17
+	case "FATAL":
+		return 21
+	default:
+		return 9
 	}
 }
 
@@ -446,27 +486,6 @@ func ExtractStringField(raw map[string]interface{}, keys ...string) string {
 		}
 	}
 	return ""
-}
-
-// CreateFallbackLogEntry creates a basic LogRecord for unparseable lines.
-func CreateFallbackLogEntry(line string) *model.LogRecord {
-	// Replace tabs and newlines with spaces to prevent formatting issues
-	cleanLine := strings.ReplaceAll(line, "\t", " ")
-	cleanLine = strings.ReplaceAll(cleanLine, "\n", " ")
-	cleanLine = strings.ReplaceAll(cleanLine, "\r", " ")
-
-	severity := logparse.ExtractSeverityFromText(cleanLine)
-	receiveTime := time.Now()
-
-	return &model.LogRecord{
-		Timestamp:     receiveTime,
-		OrigTimestamp: time.Time{},
-		Level:         logparse.NormalizeSeverity(severity),
-		Message:       cleanLine,
-		RawLine:       cleanLine,
-		Attributes:    make(map[string]string),
-		App:           "default",
-	}
 }
 
 // ExtractService extracts the service name from log attributes.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Generates pino-style NDJSON log lines to stdout for testing the TUI.
+# Generates OTEL JSON log lines to stdout for testing the TUI.
 # Usage: ./scripts/mockdata.sh | ./build/lotus
 #   or:  ./scripts/mockdata.sh --stream   (continuous, ~5 lines/sec)
 #   or:  ./scripts/mockdata.sh --stream --lps 50
@@ -9,7 +9,7 @@ set -euo pipefail
 HOSTNAME_VAL="$(hostname)"
 
 SERVICES=("api-gateway" "user-service" "payment-service" "auth-service" "notification-service")
-LEVELS=(30 30 30 30 30 40 40 50 50 60 20 20 10) # weighted: mostly info, some warn/error
+SEVERITIES=("INFO" "INFO" "INFO" "INFO" "INFO" "WARN" "WARN" "ERROR" "ERROR" "FATAL" "DEBUG" "DEBUG" "TRACE")
 MESSAGES_INFO=(
   "Request completed successfully"
   "Health check passed"
@@ -41,7 +41,7 @@ MESSAGES_ERROR=(
   "Failed to connect to database: connection refused"
   "Payment processing failed: insufficient funds"
   "Unhandled exception in request handler"
-  "Redis connection lost, reconnecting..."
+  "Redis connection lost, reconnecting"
   "External API returned 503: service unavailable"
   "Failed to parse request body: invalid JSON"
   "Authentication failed: invalid token signature"
@@ -55,9 +55,14 @@ MESSAGES_FATAL=(
 MESSAGES_DEBUG=(
   "Resolving DNS for api.stripe.com"
   "Request headers: content-type=application/json"
-  "SQL: SELECT id, name FROM users WHERE active = true LIMIT 50"
+  "SQL plan sampled"
   "Cache TTL for key session:abc123 = 1800s"
   "gRPC channel state: READY"
+)
+MESSAGES_TRACE=(
+  "Span entered"
+  "Span exited"
+  "Internal checkpoint reached"
 )
 
 ENDPOINTS=("/api/v2/users" "/api/v2/orders" "/api/v2/payments" "/api/v2/auth/login" "/api/v2/health" "/api/v2/products" "/api/v2/notifications" "/api/v2/search")
@@ -65,60 +70,71 @@ METHODS=("GET" "POST" "PUT" "DELETE" "PATCH")
 ENVS=("production" "staging" "development")
 REGIONS=("us-east-1" "us-west-2" "eu-west-1" "ap-southeast-1")
 VERSIONS=("1.4.2" "1.5.0" "1.5.1" "2.0.0-beta.3")
-TRACE_IDS=()
-for i in $(seq 1 20); do
-  TRACE_IDS+=("$(printf '%032x' $((RANDOM * RANDOM + RANDOM)))")
-done
 
-pick() { local arr=("$@"); echo "${arr[$((RANDOM % ${#arr[@]}))]}" ; }
+pick() { local arr=("$@"); echo "${arr[$((RANDOM % ${#arr[@]}))]}"; }
 rand_between() { echo $(( $1 + RANDOM % ($2 - $1 + 1) )); }
 
-emit_line() {
-  local svc lvl_num msg
-  svc=$(pick "${SERVICES[@]}")
-  lvl_num=$(pick "${LEVELS[@]}")
+rand_hex() {
+  local length="$1"
+  local out=""
+  while [ "${#out}" -lt "$length" ]; do
+    out+="$(printf '%04x' "$RANDOM")"
+  done
+  echo "${out:0:length}"
+}
 
-  case $lvl_num in
-    10) msg=$(pick "${MESSAGES_DEBUG[@]}") ;;
-    20) msg=$(pick "${MESSAGES_DEBUG[@]}") ;;
-    40) msg=$(pick "${MESSAGES_WARN[@]}") ;;
-    50) msg=$(pick "${MESSAGES_ERROR[@]}") ;;
-    60) msg=$(pick "${MESSAGES_FATAL[@]}") ;;
-    *)  msg=$(pick "${MESSAGES_INFO[@]}") ;;
+severity_number() {
+  case "$1" in
+    TRACE) echo 1 ;;
+    DEBUG) echo 5 ;;
+    INFO) echo 9 ;;
+    WARN) echo 13 ;;
+    ERROR) echo 17 ;;
+    FATAL) echo 21 ;;
+    *) echo 9 ;;
+  esac
+}
+
+emit_line() {
+  local svc sev msg
+  svc=$(pick "${SERVICES[@]}")
+  sev=$(pick "${SEVERITIES[@]}")
+
+  case "$sev" in
+    TRACE) msg=$(pick "${MESSAGES_TRACE[@]}") ;;
+    DEBUG) msg=$(pick "${MESSAGES_DEBUG[@]}") ;;
+    WARN) msg=$(pick "${MESSAGES_WARN[@]}") ;;
+    ERROR) msg=$(pick "${MESSAGES_ERROR[@]}") ;;
+    FATAL) msg=$(pick "${MESSAGES_FATAL[@]}") ;;
+    *) msg=$(pick "${MESSAGES_INFO[@]}") ;;
   esac
 
-  # Pino uses unix epoch milliseconds for "time"
-  local time_ms pid endpoint method status_code duration trace_id env region version
-  time_ms="$(date +%s)$(printf '%03d' $((RANDOM % 1000)))"
-  pid=$(rand_between 1000 9999)
+  local sec nano time_nano endpoint method status_code duration trace_id span_id env region version app sev_num
+  sec="$(date +%s)"
+  nano="$(printf '%09d' $((RANDOM * 1000000 % 1000000000)))"
+  time_nano="${sec}${nano}"
   endpoint=$(pick "${ENDPOINTS[@]}")
   method=$(pick "${METHODS[@]}")
   duration=$(rand_between 1 800)
-  trace_id=$(pick "${TRACE_IDS[@]}")
+  trace_id=$(rand_hex 32)
+  span_id=$(rand_hex 16)
   env=$(pick "${ENVS[@]}")
   region=$(pick "${REGIONS[@]}")
   version=$(pick "${VERSIONS[@]}")
+  app="$svc"
+  sev_num="$(severity_number "$sev")"
 
-  if [ "$lvl_num" -ge 50 ]; then
+  if [ "$sev" = "ERROR" ] || [ "$sev" = "FATAL" ]; then
     status_code=$(pick 500 502 503)
-  elif [ "$lvl_num" -ge 40 ]; then
+  elif [ "$sev" = "WARN" ]; then
     status_code=$(pick 400 401 408 429)
   else
     status_code=$(pick 200 200 200 201 204 304)
   fi
 
-  # Random subset of extra fields per line to keep it varied
-  local extra=""
-  (( RANDOM % 2 == 0 )) && extra="${extra},\"reqId\":\"req-$(rand_between 10000 99999)\""
-  (( RANDOM % 2 == 0 )) && extra="${extra},\"userId\":\"usr-$(rand_between 1000 9999)\""
-  (( RANDOM % 3 == 0 )) && extra="${extra},\"responseSize\":$(rand_between 128 65536)"
-  (( RANDOM % 3 == 0 )) && extra="${extra},\"cacheHit\":$(pick true false)"
-  (( RANDOM % 4 == 0 )) && extra="${extra},\"retryCount\":$(rand_between 0 3)"
-  (( RANDOM % 4 == 0 )) && extra="${extra},\"queueDepth\":$(rand_between 0 500)"
-  (( RANDOM % 3 == 0 )) && extra="${extra},\"correlationId\":\"$(printf '%08x-%04x-%04x' $((RANDOM*RANDOM)) $((RANDOM)) $((RANDOM)))\""
-
-  printf '{"level":%d,"time":%s,"msg":"%s","pid":%d,"hostname":"%s","_app":"%s","env":"%s","region":"%s","version":"%s","method":"%s","path":"%s","statusCode":%d,"duration":%d,"traceId":"%s"%s}\n' \
-    "$lvl_num" "$time_ms" "$msg" "$pid" "$HOSTNAME_VAL" "$svc" "$env" "$region" "$version" "$method" "$endpoint" "$status_code" "$duration" "$trace_id" "$extra"
+  printf '{"timeUnixNano":"%s","severityNumber":%s,"severityText":"%s","body":{"stringValue":"%s"},"traceId":"%s","spanId":"%s","attributes":[{"key":"app","value":{"stringValue":"%s"}},{"key":"service.name","value":{"stringValue":"%s"}},{"key":"host.name","value":{"stringValue":"%s"}},{"key":"env","value":{"stringValue":"%s"}},{"key":"region","value":{"stringValue":"%s"}},{"key":"version","value":{"stringValue":"%s"}},{"key":"http.method","value":{"stringValue":"%s"}},{"key":"http.target","value":{"stringValue":"%s"}},{"key":"http.status_code","value":{"intValue":"%d"}},{"key":"duration.ms","value":{"doubleValue":%d}}]}' \
+    "$time_nano" "$sev_num" "$sev" "$msg" "$trace_id" "$span_id" "$app" "$svc" "$HOSTNAME_VAL" "$env" "$region" "$version" "$method" "$endpoint" "$status_code" "$duration"
+  printf '\n'
 }
 
 STREAM=false
@@ -135,7 +151,7 @@ done
 SLEEP_INTERVAL=$(awk "BEGIN {printf \"%.4f\", 1.0 / ${LPS}}")
 
 if [ "$STREAM" = true ]; then
-  echo "Streaming mock pino logs at ~${LPS}/sec (Ctrl+C to stop)..." >&2
+  echo "Streaming mock OTEL logs at ~${LPS}/sec (Ctrl+C to stop)..." >&2
   while true; do
     emit_line
     sleep "$SLEEP_INTERVAL"

@@ -25,7 +25,7 @@ type ServerConfig struct {
 	MaxLineSize     int
 }
 
-// Server listens for NDJSON log lines over TCP (e.g., from pino-socket).
+// Server listens for newline-delimited OTEL JSON log payloads over TCP.
 type Server struct {
 	listener    net.Listener
 	addr        string

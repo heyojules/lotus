@@ -33,7 +33,6 @@ type appConfig struct {
 	LogBuffer            int           `mapstructure:"log-buffer"`
 	TestMode             bool          `mapstructure:"test-mode"`
 	Host                 string        `mapstructure:"host"`
-	Processor            string        `mapstructure:"processor"`
 	TCPEnabled           bool          `mapstructure:"tcp-enabled"`
 	TCPPort              int           `mapstructure:"tcp-port"`
 	TCPAddr              string        `mapstructure:"tcp-addr"`

@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/control-theory/lotus/internal/ingest"
 	"github.com/control-theory/lotus/internal/socketrpc"
 
 	"github.com/spf13/viper"
@@ -79,7 +78,6 @@ func loadConfig(configPath string) (appConfig, error) {
 	v.SetDefault("log-buffer", defaultLogBuffer)
 	v.SetDefault("test-mode", false)
 	v.SetDefault("host", defaultBindHost)
-	v.SetDefault("processor", ingest.ProcessorModeParse)
 	v.SetDefault("tcp-enabled", true)
 	v.SetDefault("tcp-port", defaultTCPPort)
 	v.SetDefault("mux-buffer-size", defaultMuxBufferSize)
@@ -134,9 +132,6 @@ func loadConfig(configPath string) (appConfig, error) {
 	}
 	if cfg.APIPort <= 0 || cfg.APIPort > 65535 {
 		return cfg, fmt.Errorf("invalid api-port: %d", cfg.APIPort)
-	}
-	if !ingest.IsValidProcessorMode(cfg.Processor) {
-		return cfg, fmt.Errorf("invalid processor mode %q", cfg.Processor)
 	}
 	if cfg.BackupEnabled && cfg.BackupInterval <= 0 {
 		return cfg, fmt.Errorf("invalid backup-interval: %s", cfg.BackupInterval)

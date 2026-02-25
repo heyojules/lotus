@@ -100,7 +100,7 @@ func (s *integrationSink) Add(record *model.LogRecord) {
 	s.records = append(s.records, record)
 }
 
-func TestPipelineIntegration_ParseMode_MultiSourceFlow(t *testing.T) {
+func TestPipelineIntegration_OTEL_MultiSourceFlow(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -114,10 +114,7 @@ func TestPipelineIntegration_ParseMode_MultiSourceFlow(t *testing.T) {
 	defer mux.Stop()
 
 	sink := &integrationSink{}
-	processor, err := ingest.NewEnvelopeProcessor(ingest.ProcessorModeParse, sink, "")
-	if err != nil {
-		t.Fatalf("NewEnvelopeProcessor(parse): %v", err)
-	}
+	processor := ingest.NewEnvelopeProcessor(sink, "")
 
 	tcp.lines <- model.IngestEnvelope{
 		Source: "tcp",
@@ -166,7 +163,7 @@ func TestPipelineIntegration_ParseMode_MultiSourceFlow(t *testing.T) {
 	}
 }
 
-func TestPipelineIntegration_PassthroughMode_SkipsJSONNormalization(t *testing.T) {
+func TestPipelineIntegration_OTEL_DropsNonOTELPayload(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -178,10 +175,7 @@ func TestPipelineIntegration_PassthroughMode_SkipsJSONNormalization(t *testing.T
 	defer mux.Stop()
 
 	sink := &integrationSink{}
-	processor, err := ingest.NewEnvelopeProcessor(ingest.ProcessorModePassthrough, sink, "")
-	if err != nil {
-		t.Fatalf("NewEnvelopeProcessor(passthrough): %v", err)
-	}
+	processor := ingest.NewEnvelopeProcessor(sink, "")
 
 	raw := `{"level":30,"msg":"json message","service":"orders"}`
 	src.lines <- model.IngestEnvelope{Source: "tcp", Line: raw}
@@ -191,18 +185,7 @@ func TestPipelineIntegration_PassthroughMode_SkipsJSONNormalization(t *testing.T
 		processor.ProcessEnvelope(env)
 	}
 
-	if len(sink.records) != 1 {
-		t.Fatalf("records = %d, want 1", len(sink.records))
-	}
-	rec := sink.records[0]
-
-	if rec.Source != "tcp" {
-		t.Fatalf("source = %q, want %q", rec.Source, "tcp")
-	}
-	if rec.Message != raw {
-		t.Fatalf("message = %q, want raw line %q", rec.Message, raw)
-	}
-	if rec.Service != "" {
-		t.Fatalf("service = %q, want empty (passthrough skips service normalization)", rec.Service)
+	if len(sink.records) != 0 {
+		t.Fatalf("records = %d, want 0", len(sink.records))
 	}
 }

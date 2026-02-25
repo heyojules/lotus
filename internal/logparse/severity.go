@@ -65,34 +65,3 @@ func ExtractSeverityFromText(message string) string {
 	}
 	return "INFO"
 }
-
-// PinoLevelToString converts pino/bunyan numeric levels to strings.
-func PinoLevelToString(level int) string {
-	switch level {
-	case 10:
-		return "TRACE"
-	case 20:
-		return "DEBUG"
-	case 30:
-		return "INFO"
-	case 40:
-		return "WARN"
-	case 50:
-		return "ERROR"
-	case 60:
-		return "FATAL"
-	default:
-		if level < 20 {
-			return "TRACE"
-		} else if level < 30 {
-			return "DEBUG"
-		} else if level < 40 {
-			return "INFO"
-		} else if level < 50 {
-			return "WARN"
-		} else if level < 60 {
-			return "ERROR"
-		}
-		return "FATAL"
-	}
-}

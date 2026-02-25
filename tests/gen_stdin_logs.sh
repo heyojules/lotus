@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gen_stdin_logs.sh — Generates mixed JSON logs to stdout for piping into Lotus via stdin.
+# gen_stdin_logs.sh — Generates OTEL log-record JSON lines to stdout for piping into Lotus via stdin.
 # Usage: ./tests/gen_stdin_logs.sh | ./lotus --config cmd/lotus/config.yml
 # Env vars: RATE (logs/sec, default 5), DURATION (seconds, default infinite)
 
@@ -59,7 +59,7 @@ for ((i = 0; i < NUM_APPS; i++)); do
 done
 
 # Log setup info to stderr so it doesn't interfere with stdout piping
-echo "Generating stdin logs (pipe into Lotus)" >&2
+echo "Generating OTEL stdin logs (pipe into Lotus)" >&2
 echo "Apps: ${APPS[*]}" >&2
 echo "Rate: ${RATE}/sec | Duration: ${DURATION}s (0=infinite)" >&2
 echo "Press Ctrl+C to stop" >&2
@@ -121,27 +121,8 @@ while true; do
     MSG="${FATAL_MESSAGES[$((RANDOM % ${#FATAL_MESSAGES[@]}))]}"
   fi
 
-  # Rotate formats
-  FORMAT=$((RANDOM % 3))
-
-  case $FORMAT in
-    0)
-      # Pino-style
-      case $SEV in
-        DEBUG) LVL=20 ;; INFO) LVL=30 ;; WARN) LVL=40 ;; ERROR) LVL=50 ;; FATAL) LVL=60 ;; *) LVL=30 ;;
-      esac
-      echo "{\"level\":${LVL},\"time\":${UNIX_TS}000,\"msg\":\"${MSG}\",\"_app\":\"${APP}\",\"requestId\":\"${REQUEST_ID}\",\"duration\":${DURATION_MS},\"method\":\"${METHOD}\",\"path\":\"${PATH_VAL}\",\"statusCode\":${STATUS}}"
-      ;;
-    1)
-      # Zerolog-style
-      LVL_STR=$(echo "$SEV" | tr '[:upper:]' '[:lower:]')
-      echo "{\"level\":\"${LVL_STR}\",\"ts\":\"${TS}\",\"msg\":\"${MSG}\",\"_app\":\"${APP}\",\"service.name\":\"${SERVICE}\",\"requestId\":\"${REQUEST_ID}\",\"duration\":${DURATION_MS}}"
-      ;;
-    2)
-      # Winston-style
-      echo "{\"level\":\"${SEV}\",\"timestamp\":\"${TS}\",\"message\":\"${MSG}\",\"_app\":\"${APP}\",\"service.name\":\"${SERVICE}\",\"userId\":${USER_ID},\"statusCode\":${STATUS}}"
-      ;;
-  esac
+  TIME_NANO=$(awk -v s="$UNIX_TS" 'BEGIN { printf "%.0f", s * 1000000000 }')
+  echo "{\"timeUnixNano\":\"${TIME_NANO}\",\"severityText\":\"${SEV}\",\"body\":{\"stringValue\":\"${MSG}\"},\"attributes\":[{\"key\":\"app\",\"value\":{\"stringValue\":\"${APP}\"}},{\"key\":\"service.name\",\"value\":{\"stringValue\":\"${SERVICE}\"}},{\"key\":\"request.id\",\"value\":{\"stringValue\":\"${REQUEST_ID}\"}},{\"key\":\"user.id\",\"value\":{\"intValue\":\"${USER_ID}\"}},{\"key\":\"duration.ms\",\"value\":{\"doubleValue\":${DURATION_MS}}},{\"key\":\"http.method\",\"value\":{\"stringValue\":\"${METHOD}\"}},{\"key\":\"http.target\",\"value\":{\"stringValue\":\"${PATH_VAL}\"}},{\"key\":\"http.status_code\",\"value\":{\"intValue\":\"${STATUS}\"}},{\"key\":\"event.time.rfc3339\",\"value\":{\"stringValue\":\"${TS}\"}}]}"
 
   sleep "$SLEEP_INTERVAL"
 done

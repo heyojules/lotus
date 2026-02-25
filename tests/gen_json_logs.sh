@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gen_json_logs.sh — Sends NDJSON logs to TCP port simulating pino, zerolog/zap, and winston formats.
+# gen_json_logs.sh — Sends OTEL log-record JSON lines to TCP port.
 # Usage: ./tests/gen_json_logs.sh
 # Env vars: PORT (default 4000), RATE (logs/sec, default 5), DURATION (seconds, default infinite)
 
@@ -74,7 +74,7 @@ for ((i = 0; i < NUM_APPS; i++)); do
   APPS+=("${adj}-${noun}")
 done
 
-echo "Sending JSON logs to localhost:${PORT}"
+echo "Sending OTEL JSON logs to localhost:${PORT}"
 echo "Apps: ${APPS[*]}"
 echo "Rate: ${RATE}/sec | Duration: ${DURATION}s (0=infinite)"
 echo "Press Ctrl+C to stop"
@@ -172,27 +172,8 @@ while true; do
     MSG="${FATAL_MESSAGES[$((RANDOM % ${#FATAL_MESSAGES[@]}))]}"
   fi
 
-  # Rotate between 3 logger formats
-  FORMAT=$((RANDOM % 3))
-
-  case $FORMAT in
-    0)
-      # Pino-style: numeric level, "msg", "time" as unix ms
-      case $SEV in
-        DEBUG) LVL=20 ;; INFO) LVL=30 ;; WARN) LVL=40 ;; ERROR) LVL=50 ;; FATAL) LVL=60 ;; *) LVL=30 ;;
-      esac
-      LINE="{\"level\":${LVL},\"time\":${UNIX_TS}000,\"msg\":\"${MSG}\",\"_app\":\"${APP}\",\"requestId\":\"${REQUEST_ID}\",\"userId\":${USER_ID},\"duration\":${DURATION_MS},\"method\":\"${METHOD}\",\"path\":\"${PATH_VAL}\",\"statusCode\":${STATUS}}"
-      ;;
-    1)
-      # Zerolog/Zap-style: string level, "msg", "ts" as ISO
-      LVL_STR=$(echo "$SEV" | tr '[:upper:]' '[:lower:]')
-      LINE="{\"level\":\"${LVL_STR}\",\"ts\":\"${TS}\",\"msg\":\"${MSG}\",\"_app\":\"${APP}\",\"service.name\":\"${SERVICE}\",\"requestId\":\"${REQUEST_ID}\",\"duration\":${DURATION_MS},\"method\":\"${METHOD}\",\"path\":\"${PATH_VAL}\",\"statusCode\":${STATUS}}"
-      ;;
-    2)
-      # Winston-style: "message" field, "timestamp"
-      LINE="{\"level\":\"${SEV}\",\"timestamp\":\"${TS}\",\"message\":\"${MSG}\",\"_app\":\"${APP}\",\"service.name\":\"${SERVICE}\",\"userId\":${USER_ID},\"method\":\"${METHOD}\",\"path\":\"${PATH_VAL}\",\"statusCode\":${STATUS}}"
-      ;;
-  esac
+  TIME_NANO=$(awk -v s="$UNIX_TS" 'BEGIN { printf "%.0f", s * 1000000000 }')
+  LINE="{\"timeUnixNano\":\"${TIME_NANO}\",\"severityText\":\"${SEV}\",\"body\":{\"stringValue\":\"${MSG}\"},\"attributes\":[{\"key\":\"app\",\"value\":{\"stringValue\":\"${APP}\"}},{\"key\":\"service.name\",\"value\":{\"stringValue\":\"${SERVICE}\"}},{\"key\":\"request.id\",\"value\":{\"stringValue\":\"${REQUEST_ID}\"}},{\"key\":\"user.id\",\"value\":{\"intValue\":\"${USER_ID}\"}},{\"key\":\"duration.ms\",\"value\":{\"doubleValue\":${DURATION_MS}}},{\"key\":\"http.method\",\"value\":{\"stringValue\":\"${METHOD}\"}},{\"key\":\"http.target\",\"value\":{\"stringValue\":\"${PATH_VAL}\"}},{\"key\":\"http.status_code\",\"value\":{\"intValue\":\"${STATUS}\"}},{\"key\":\"event.time.rfc3339\",\"value\":{\"stringValue\":\"${TS}\"}}]}"
 
   echo "$LINE" >&3
 

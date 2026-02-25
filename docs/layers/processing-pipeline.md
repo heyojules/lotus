@@ -22,15 +22,14 @@ type EnvelopeProcessor interface {
 }
 ```
 
-Current implementations:
+Current implementation:
 
-- `parse` (`Processor`) for full parse + normalize behavior.
-- `passthrough` (`PassthroughProcessor`) for minimal processing.
+- `otel` (`Processor`) for OTEL parse + normalize behavior.
 
-`parse` does three jobs:
+`otel` does three jobs:
 
 1. Multi-line JSON accumulation (`tryAccumulateJSON`, `CountJSONDepth`)
-2. Parsing and normalization (`ParseJSONLogEntry`, fallback parsing)
+2. Parsing and normalization (`ParseJSONLogEntries`) for OTEL log model payloads
 3. Storage handoff (`insertBuffer.Add(record)`)
 
 Main output type:
@@ -51,10 +50,9 @@ Canonical record type is shared across layers in `internal/model/types.go`.
 
 ## Current Strengths
 
-- Handles both structured JSON and plain text logs.
-- Normalizes severity and timestamps across common logger formats.
+- OTEL-first processing path with deterministic behavior.
+- Handles both OTEL single-record and OTEL export-envelope shapes.
 - Includes bounded multi-line JSON buffer (10 MB cap) to avoid unbounded growth.
-- Uses fallback parser so ingestion remains resilient under mixed input quality.
 
 ## Current Friction
 

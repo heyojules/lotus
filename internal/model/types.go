@@ -8,7 +8,7 @@ type LogRecord struct {
 	Timestamp     time.Time
 	OrigTimestamp time.Time // Zero value = no orig timestamp
 	Level         string    // TRACE/DEBUG/INFO/WARN/ERROR/FATAL
-	LevelNum      int       // Pino numeric: 10/20/30/40/50/60
+	LevelNum      int       // OTEL severityNumber (typically 1-24)
 	Message       string
 	RawLine       string
 	Service       string

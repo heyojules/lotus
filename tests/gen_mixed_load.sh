@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gen_mixed_load.sh — Launches multiple log generators in parallel to simulate a busy environment.
+# gen_mixed_load.sh — Launches multiple OTEL JSON generators in parallel.
 # Usage: ./tests/gen_mixed_load.sh [-lps N] [-d SECONDS] [-p PORT]
 # Env vars: PORT (default 4000), DURATION (seconds, default infinite), LPS (logs/sec, default 8)
 
@@ -26,7 +26,7 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     -h|--help)
-      cat <<EOF
+      cat <<USAGE
 Usage: $0 [-lps N] [-d SECONDS] [-p PORT]
 
 Options:
@@ -40,7 +40,7 @@ Examples:
   $0 -lps 50            # ~50 logs/sec
   $0 -lps 100 -d 30     # ~100 logs/sec for 30 seconds
   $0 -lps 200 -p 5000   # ~200 logs/sec to port 5000
-EOF
+USAGE
       exit 0
       ;;
     *)
@@ -51,9 +51,8 @@ EOF
   esac
 done
 
-# Distribute LPS across 4 generators with a 3:2:2:1 ratio (JSON:JSON:Text:Text)
-# Using awk for integer rounding
-read -r R_JSON1 R_JSON2 R_TEXT1 R_TEXT2 <<< "$(awk -v lps="$LPS" 'BEGIN {
+# Distribute LPS across 4 OTEL generators with a 3:2:2:1 ratio.
+read -r R1 R2 R3 R4 <<< "$(awk -v lps="$LPS" 'BEGIN {
   r1 = int(lps * 3 / 8 + 0.5)
   r2 = int(lps * 2 / 8 + 0.5)
   r3 = int(lps * 2 / 8 + 0.5)
@@ -62,8 +61,7 @@ read -r R_JSON1 R_JSON2 R_TEXT1 R_TEXT2 <<< "$(awk -v lps="$LPS" 'BEGIN {
   print r1, r2, r3, r4
 }')"
 
-TOTAL=$((R_JSON1 + R_JSON2 + R_TEXT1 + R_TEXT2))
-
+TOTAL=$((R1 + R2 + R3 + R4))
 PIDS=()
 
 cleanup() {
@@ -78,34 +76,29 @@ cleanup() {
 }
 trap cleanup SIGINT SIGTERM
 
-echo "=== Mixed Load Test ==="
+echo "=== OTEL Mixed Load Test ==="
 echo "Port: ${PORT} | Duration: ${DURATION}s (0=infinite) | Target: ~${LPS} logs/sec"
 echo "Launching generators..."
 echo ""
 
-# JSON logs
-PORT="$PORT" RATE="$R_JSON1" DURATION="$DURATION" "$SCRIPT_DIR/gen_json_logs.sh" &
+PORT="$PORT" RATE="$R1" DURATION="$DURATION" "$SCRIPT_DIR/gen_json_logs.sh" &
 PIDS+=($!)
-echo "[PID $!] JSON log generator (${R_JSON1}/sec)"
+echo "[PID $!] OTEL JSON generator (${R1}/sec)"
 
-# Another JSON stream
-PORT="$PORT" RATE="$R_JSON2" DURATION="$DURATION" "$SCRIPT_DIR/gen_json_logs.sh" &
+PORT="$PORT" RATE="$R2" DURATION="$DURATION" "$SCRIPT_DIR/gen_json_logs.sh" &
 PIDS+=($!)
-echo "[PID $!] JSON log generator (${R_JSON2}/sec)"
+echo "[PID $!] OTEL JSON generator (${R2}/sec)"
 
-# Text logs
-PORT="$PORT" RATE="$R_TEXT1" DURATION="$DURATION" "$SCRIPT_DIR/gen_text_logs.sh" &
+PORT="$PORT" RATE="$R3" DURATION="$DURATION" "$SCRIPT_DIR/gen_json_logs.sh" &
 PIDS+=($!)
-echo "[PID $!] Text log generator (${R_TEXT1}/sec)"
+echo "[PID $!] OTEL JSON generator (${R3}/sec)"
 
-# Another text stream
-PORT="$PORT" RATE="$R_TEXT2" DURATION="$DURATION" "$SCRIPT_DIR/gen_text_logs.sh" &
+PORT="$PORT" RATE="$R4" DURATION="$DURATION" "$SCRIPT_DIR/gen_json_logs.sh" &
 PIDS+=($!)
-echo "[PID $!] Text log generator (${R_TEXT2}/sec)"
+echo "[PID $!] OTEL JSON generator (${R4}/sec)"
 
 echo ""
 echo "All generators running (~${TOTAL} logs/sec total). Press Ctrl+C to stop."
 echo ""
 
-# Wait for all children
 wait
