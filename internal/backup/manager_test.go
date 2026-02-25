@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 )
@@ -67,11 +68,9 @@ func TestRunOnce_CreatesAndPrunesLocalBackups(t *testing.T) {
 	if err := m.RunOnce(context.Background()); err != nil {
 		t.Fatalf("RunOnce #1: %v", err)
 	}
-	time.Sleep(1 * time.Second)
 	if err := m.RunOnce(context.Background()); err != nil {
 		t.Fatalf("RunOnce #2: %v", err)
 	}
-	time.Sleep(1 * time.Second)
 	if err := m.RunOnce(context.Background()); err != nil {
 		t.Fatalf("RunOnce #3: %v", err)
 	}
@@ -82,5 +81,59 @@ func TestRunOnce_CreatesAndPrunesLocalBackups(t *testing.T) {
 	}
 	if len(files) != 2 {
 		t.Fatalf("backup files = %d, want 2", len(files))
+	}
+}
+
+type blockingUploader struct {
+	started chan struct{}
+	once    sync.Once
+}
+
+func (u *blockingUploader) UploadFile(ctx context.Context, _ string) error {
+	u.once.Do(func() { close(u.started) })
+	<-ctx.Done()
+	return ctx.Err()
+}
+
+func TestStop_CancelsInFlightUpload(t *testing.T) {
+	t.Parallel()
+
+	localDir := t.TempDir()
+	uploader := &blockingUploader{started: make(chan struct{})}
+	m := &Manager{
+		store: &fakeSnapshotter{
+			dbPath: "/tmp/lotus.duckdb",
+			data:   []byte("snapshot"),
+		},
+		cfg: Config{
+			Enabled:  true,
+			Interval: 5 * time.Millisecond,
+			LocalDir: localDir,
+			KeepLast: 2,
+		},
+		uploader: uploader,
+		done:     make(chan struct{}),
+	}
+	m.ctx, m.cancel = context.WithCancel(context.Background())
+
+	m.wg.Add(1)
+	go m.loop()
+
+	select {
+	case <-uploader.started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for upload to start")
+	}
+
+	done := make(chan struct{})
+	go func() {
+		m.Stop()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("Stop did not return; upload likely not canceled")
 	}
 }

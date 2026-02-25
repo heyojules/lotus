@@ -2,6 +2,7 @@ package backup
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -13,8 +14,9 @@ import (
 )
 
 const (
-	defaultInterval = 6 * time.Hour
-	defaultKeepLast = 24
+	defaultInterval   = 6 * time.Hour
+	defaultKeepLast   = 24
+	defaultRunTimeout = 2 * time.Minute
 )
 
 // Manager runs periodic local snapshots and optional remote uploads.
@@ -23,8 +25,11 @@ type Manager struct {
 	cfg      Config
 	uploader Uploader
 
-	done chan struct{}
-	wg   sync.WaitGroup
+	ctx      context.Context
+	cancel   context.CancelFunc
+	done     chan struct{}
+	wg       sync.WaitGroup
+	stopOnce sync.Once
 }
 
 // NewManager initializes backup manager. It returns nil when backups are disabled.
@@ -75,11 +80,15 @@ func NewManager(store Snapshotter, cfg Config) (*Manager, error) {
 		uploader: uploader,
 		done:     make(chan struct{}),
 	}
+	m.ctx, m.cancel = context.WithCancel(context.Background())
 
-	// Startup snapshot to reduce recovery point after restarts.
-	if err := m.RunOnce(context.Background()); err != nil {
+	// Startup snapshot to reduce recovery point after restarts. Bounded timeout
+	// avoids blocking service startup indefinitely on slow storage/network.
+	startupCtx, startupCancel := context.WithTimeout(m.ctx, defaultRunTimeout)
+	if err := m.RunOnce(startupCtx); err != nil {
 		log.Printf("backup: startup snapshot failed: %v", err)
 	}
+	startupCancel()
 
 	m.wg.Add(1)
 	go m.loop()
@@ -94,7 +103,10 @@ func (m *Manager) loop() {
 	for {
 		select {
 		case <-ticker.C:
-			if err := m.RunOnce(context.Background()); err != nil {
+			runCtx, cancel := context.WithTimeout(m.ctx, defaultRunTimeout)
+			err := m.RunOnce(runCtx)
+			cancel()
+			if err != nil && !isContextCancel(err) {
 				log.Printf("backup: periodic snapshot failed: %v", err)
 			}
 		case <-m.done:
@@ -105,7 +117,8 @@ func (m *Manager) loop() {
 
 // RunOnce creates one local snapshot, uploads it when configured, and prunes old local copies.
 func (m *Manager) RunOnce(ctx context.Context) error {
-	fileName := fmt.Sprintf("lotus-%s.duckdb", time.Now().UTC().Format("20060102-150405"))
+	timestamp := strings.ReplaceAll(time.Now().UTC().Format("20060102-150405.000000000"), ".", "-")
+	fileName := fmt.Sprintf("lotus-%s.duckdb", timestamp)
 	localPath := filepath.Join(m.cfg.LocalDir, fileName)
 
 	if err := m.store.SnapshotTo(localPath); err != nil {
@@ -128,8 +141,15 @@ func (m *Manager) RunOnce(ctx context.Context) error {
 
 // Stop terminates the periodic backup loop.
 func (m *Manager) Stop() {
-	close(m.done)
-	m.wg.Wait()
+	m.stopOnce.Do(func() {
+		if m.cancel != nil {
+			m.cancel()
+		}
+		if m.done != nil {
+			close(m.done)
+		}
+		m.wg.Wait()
+	})
 }
 
 func pruneLocalBackups(localDir string, keepLast int) error {
@@ -156,4 +176,8 @@ func pruneLocalBackups(localDir string, keepLast int) error {
 		}
 	}
 	return nil
+}
+
+func isContextCancel(err error) bool {
+	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
 }

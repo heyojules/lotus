@@ -51,6 +51,14 @@ func (m *DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case TickMsg:
+		// Freeze refresh while user is reading logs (or manually paused)
+		// so selection/scroll position remains stable.
+		if m.liveUpdatesPaused() {
+			return m, tea.Tick(m.updateInterval, func(t time.Time) tea.Msg {
+				return TickMsg(t)
+			})
+		}
+
 		// Fetch total log count ONCE per tick — shared by stats, drain3, and sidebar
 		var totalCount int64
 		if m.store != nil {
@@ -97,10 +105,7 @@ func (m *DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			panel.Refresh(m.store, opts)
 		}
 
-		// Only refresh log list when not paused
-		if !m.viewPaused {
-			m.refreshLogEntriesFromStore()
-		}
+		m.refreshLogEntriesFromStore()
 
 		// Continue periodic ticks
 		return m, tea.Tick(m.updateInterval, func(t time.Time) tea.Msg {

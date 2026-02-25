@@ -121,8 +121,12 @@ func (m *DashboardModel) renderStatusLine() string {
 	}
 
 	if !m.filterActive && !m.searchActive && !m.HasModal() {
-		if m.viewPaused {
-			statusInfo = "⏸"
+		if m.liveUpdatesPaused() {
+			if m.viewPaused {
+				statusInfo = "⏸ Manual"
+			} else {
+				statusInfo = "⏸ Focus Lock"
+			}
 		} else if !veryNarrow {
 			intervalStr := m.formatDuration(m.updateInterval)
 			if narrow {
@@ -279,12 +283,12 @@ func (m *DashboardModel) renderFilter() string {
 func (m *DashboardModel) renderLogScrollContent(height int, logWidth int) []string {
 	var logLines []string
 
-	// Add paused indicator and help text when log section is active
+	// Add focus-lock indicator and help text when log section is active.
 	if m.activeSection == SectionLogs {
 		pausedStyle := lipgloss.NewStyle().
 			Foreground(ColorYellow).
 			Bold(true)
-		statusLine := pausedStyle.Render("↑/↓ to navigate • Home: Top • End: Latest • PgUp/PgDn: Page • Enter for details")
+		statusLine := pausedStyle.Render("Focus lock on: live updates paused while reading logs • Tab/click away to resume")
 		logLines = append(logLines, statusLine)
 		height-- // Reduce available height for logs
 	}

@@ -400,3 +400,14 @@ func (m *DashboardModel) isLogViewerOpen() bool {
 	}
 	return false
 }
+
+// autoPauseLiveUpdates returns true when the user is in log-reading context.
+// This prevents incoming refreshes from shifting the selection while reading.
+func (m *DashboardModel) autoPauseLiveUpdates() bool {
+	return m.activeSection == SectionLogs || m.isLogViewerOpen()
+}
+
+// liveUpdatesPaused returns true when refreshes should be skipped.
+func (m *DashboardModel) liveUpdatesPaused() bool {
+	return m.viewPaused || m.autoPauseLiveUpdates()
+}

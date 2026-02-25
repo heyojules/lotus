@@ -48,8 +48,12 @@ func (m *DashboardModel) renderLogViewerModalView(width, height int) string {
 	// Build status message
 	statusParts := []string{fmt.Sprintf("Total: %d", len(m.logEntries))}
 
-	if m.viewPaused {
-		statusParts = append(statusParts, "⏸ PAUSED")
+	if m.liveUpdatesPaused() {
+		if m.viewPaused {
+			statusParts = append(statusParts, "⏸ PAUSED (manual)")
+		} else {
+			statusParts = append(statusParts, "⏸ PAUSED (focus lock)")
+		}
 	}
 
 	if hasActiveFilter {

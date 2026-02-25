@@ -75,7 +75,7 @@ ACTIONS:
   s              - Search and highlight text in logs
   Ctrl+f         - Open severity filter modal
   f              - Open fullscreen log viewer modal
-  Space          - Pause/unpause UI updates
+  Space          - Pause/unpause UI updates (manual)
   c              - Toggle Host/Service columns in log view
   T              - Toggle timestamp mode (Log Time / Receive Time)
   r              - Reset pattern extraction state
@@ -96,6 +96,7 @@ SECTIONS:
   Log Patterns   - Common log message patterns (Drain3)
   Counts         - Log counts over time
   Logs           - Navigate and inspect individual log entries
+                 - Live updates auto-pause while Logs is focused
 
 FILTER & SEARCH:
   Filter (/): Type regex patterns to filter logs (searches message & attributes)

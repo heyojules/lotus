@@ -19,24 +19,28 @@ func (s *Store) DBPath() string {
 }
 
 // SnapshotTo flushes and copies the on-disk DuckDB database file to dstPath.
-// It acquires the store write lock to serialize with reads/writes during snapshot.
+// It serializes CHECKPOINT under the store write lock, then copies the DB file
+// outside the lock to avoid stalling reads/writes for large files.
 func (s *Store) SnapshotTo(dstPath string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.dbPath == "" {
-		return ErrInMemoryStore
-	}
 	if err := os.MkdirAll(filepath.Dir(dstPath), 0755); err != nil {
 		return fmt.Errorf("create snapshot dir: %w", err)
 	}
 
-	// Flush pending data and reduce WAL drift before file copy.
+	// Serialize checkpoint with DB operations for a clean snapshot boundary.
+	s.mu.Lock()
+	dbPath := s.dbPath
+	if dbPath == "" {
+		s.mu.Unlock()
+		return ErrInMemoryStore
+	}
 	if _, err := s.db.Exec("CHECKPOINT"); err != nil {
+		s.mu.Unlock()
 		return fmt.Errorf("checkpoint: %w", err)
 	}
+	s.mu.Unlock()
 
-	if err := copyFile(s.dbPath, dstPath); err != nil {
+	// Copy outside the store lock so ingestion and queries are minimally blocked.
+	if err := copyFile(dbPath, dstPath); err != nil {
 		return fmt.Errorf("copy duckdb file: %w", err)
 	}
 	return nil
