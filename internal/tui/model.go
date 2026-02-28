@@ -422,8 +422,8 @@ func DefaultPageSpecs() []PageSpec {
 			Title: "Logs",
 			ViewSpecs: []ViewSpec{
 				{
-					ID:    "overview",
-					Title: "Overview",
+					ID:    "base",
+					Title: "Base",
 					Build: func(deps DeckDeps) []Deck {
 						return []Deck{
 							NewWordsDeck(),

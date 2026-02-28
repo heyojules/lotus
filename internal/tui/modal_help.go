@@ -92,7 +92,7 @@ LOG VIEWER NAVIGATION:
   up/down or k/j - Navigate individual entries with smart auto-scroll
 
 SECTIONS:
-  Views (left)   - Sidebar view navigation (Overview/Patterns/Attributes)
+  Views (left)   - Sidebar view navigation (Base/Patterns/Attributes)
   Apps (left)    - Instant app list and app-level filtering
   Words          - Most frequent words in logs
   Attributes     - Log attributes by unique value count
