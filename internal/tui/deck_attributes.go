@@ -54,7 +54,7 @@ func (p *AttributesDeck) FetchCmd(store model.LogQuerier, opts model.QueryOpts) 
 	}
 }
 
-func (p *AttributesDeck) ApplyData(data interface{}, err error) {
+func (p *AttributesDeck) ApplyData(data any, err error) {
 	if err != nil {
 		return
 	}

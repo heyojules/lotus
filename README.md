@@ -14,12 +14,12 @@
 
 ## Why Lotus exists
 
-Lotus is a thin layer that ingests telemetry/analytics, stores them in DuckDB, and exposes a read-only HTTP API queryable by AI agents and scripts. A TUI dashboard (`lotus-tui`) is included for humans.
+Lotus is a thin layer that ingests telemetry/analytics, stores them in DuckDB, and exposes a read-only HTTP API queryable by AI agents and scripts. A TUI dashboard (`lotus-tui`) is included for humans, organized into pages (Logs, Metrics, Analytics) with switchable views within each page.
 
 
 **Design principles:**
 
-- **Standards first** — backwards compatibility with standards is the default
+- **Standards first** — built on OpenTelemetry standards by default
 - **Zero friction** — drop the binary, pipe your output, done
 - **Agent-first** — the HTTP API is the primary read surface, designed for autonomous programmatic access
 - **Minimal by intent** — keep only essential ingestion, storage, and query surfaces

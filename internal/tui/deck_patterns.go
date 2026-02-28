@@ -41,7 +41,7 @@ func (p *PatternsDeck) FetchCmd(_ model.LogQuerier, _ model.QueryOpts) tea.Cmd {
 }
 
 // ApplyData is a no-op — patterns are updated as logs arrive via drain3.
-func (p *PatternsDeck) ApplyData(_ interface{}, _ error) {}
+func (p *PatternsDeck) ApplyData(_ any, _ error) {}
 
 func (p *PatternsDeck) ContentLines(_ ViewContext) int {
 	return 8

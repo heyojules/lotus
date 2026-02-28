@@ -68,9 +68,9 @@ func (m *DashboardModel) View() string {
 
 // renderDashboard renders the main dashboard layout
 func (m *DashboardModel) renderDashboard() string {
-	// Ensure minimum height
-	if m.height < 20 {
-		return "Terminal too small. Resize to at least 20 lines."
+	// Ensure minimum dimensions
+	if m.height < 20 || m.width < 60 {
+		return "Terminal too small. Resize to at least 60x20."
 	}
 
 	// Determine content width (accounting for sidebar)
@@ -116,10 +116,6 @@ func (m *DashboardModel) renderDashboard() string {
 		result = contentArea
 	}
 
-	// Apply final height constraint to entire dashboard
-	finalStyle := lipgloss.NewStyle().
-		Height(m.height).
-		MaxWidth(m.width)
-
-	return finalStyle.Render(result)
+	// Apply cached height/width constraint to entire dashboard
+	return m.viewStyle.Render(result)
 }

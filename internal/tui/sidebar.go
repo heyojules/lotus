@@ -11,18 +11,18 @@ const sidebarWidth = 22
 type sidebarItemKind int
 
 const (
-	sidebarItemView sidebarItemKind = iota
+	sidebarItemPage sidebarItemKind = iota
 	sidebarItemApp
 )
 
 type sidebarItem struct {
 	kind    sidebarItemKind
-	viewIdx int
+	pageIdx int
 	appName string // empty means "All"
 }
 
 func (m *DashboardModel) sidebarItems() []sidebarItem {
-	items := make([]sidebarItem, 0, len(m.views)+1+len(m.appList))
+	items := make([]sidebarItem, 0, len(m.pages)+len(m.appList))
 
 	for _, app := range m.appList {
 		items = append(items, sidebarItem{
@@ -31,10 +31,10 @@ func (m *DashboardModel) sidebarItems() []sidebarItem {
 		})
 	}
 
-	for i := range m.views {
+	for i := range m.pages {
 		items = append(items, sidebarItem{
-			kind:    sidebarItemView,
-			viewIdx: i,
+			kind:    sidebarItemPage,
+			pageIdx: i,
 		})
 	}
 
@@ -75,8 +75,8 @@ func (m *DashboardModel) activateSidebarCursor() {
 
 func (m *DashboardModel) applySidebarItem(item sidebarItem) {
 	switch item.kind {
-	case sidebarItemView:
-		m.activateView(item.viewIdx)
+	case sidebarItemPage:
+		m.activatePage(item.pageIdx)
 	case sidebarItemApp:
 		m.selectedApp = item.appName
 	}
@@ -84,7 +84,7 @@ func (m *DashboardModel) applySidebarItem(item sidebarItem) {
 
 func (m *DashboardModel) buildSidebarLines() ([]string, map[int]int) {
 	rowToCursor := make(map[int]int)
-	lines := make([]string, 0, len(m.views)+len(m.appList)+8)
+	lines := make([]string, 0, len(m.pages)+len(m.appList)+8)
 
 	appendLine := func(line string) {
 		lines = append(lines, line)
@@ -119,13 +119,13 @@ func (m *DashboardModel) buildSidebarLines() ([]string, map[int]int) {
 	}
 
 	appendLine("")
-	appendLine(lipgloss.NewStyle().Bold(true).Render("Views"))
+	appendLine(lipgloss.NewStyle().Bold(true).Render("Pages"))
 	appendLine("")
 
-	for i, vw := range m.views {
-		label := fmt.Sprintf("  %s", vw.Title)
-		if m.activeViewIdx == i {
-			label = fmt.Sprintf("> %s", vw.Title)
+	for i, pg := range m.pages {
+		label := fmt.Sprintf("  %s", pg.Title)
+		if m.activePageIdx == i {
+			label = fmt.Sprintf("> %s", pg.Title)
 		}
 		rowToCursor[len(lines)] = cursor
 		if m.activeSection == SectionSidebar && m.sidebarCursor == cursor {

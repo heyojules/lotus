@@ -36,7 +36,7 @@ func (p *WordsDeck) FetchCmd(store model.LogQuerier, opts model.QueryOpts) tea.C
 	}
 }
 
-func (p *WordsDeck) ApplyData(data interface{}, err error) {
+func (p *WordsDeck) ApplyData(data any, err error) {
 	if err != nil {
 		return
 	}

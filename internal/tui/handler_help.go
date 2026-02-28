@@ -7,14 +7,18 @@ import (
 
 // HelpModal displays the help documentation.
 type HelpModal struct {
-	dashboard *DashboardModel
-	viewport  viewport.Model
+	ctx        ModalContext
+	viewport   viewport.Model
+	renderView func(vp *viewport.Model, width, height int) string
 }
 
 func NewHelpModal(m *DashboardModel) *HelpModal {
 	return &HelpModal{
-		dashboard: m,
-		viewport:  viewport.New(80, 20),
+		ctx:      m.modalContext(),
+		viewport: viewport.New(80, 20),
+		renderView: func(vp *viewport.Model, width, height int) string {
+			return m.renderHelpModalWithViewport(vp, width, height)
+		},
 	}
 }
 
@@ -48,14 +52,14 @@ func (h *HelpModal) Update(msg tea.Msg) (bool, tea.Cmd) {
 		case tea.MouseActionPress:
 			switch msg.Button {
 			case tea.MouseButtonWheelUp:
-				if h.dashboard.reverseScrollWheel {
+				if h.ctx.ReverseScrollWheel {
 					h.viewport.ScrollDown(1)
 				} else {
 					h.viewport.ScrollUp(1)
 				}
 				return false, nil
 			case tea.MouseButtonWheelDown:
-				if h.dashboard.reverseScrollWheel {
+				if h.ctx.ReverseScrollWheel {
 					h.viewport.ScrollUp(1)
 				} else {
 					h.viewport.ScrollDown(1)
@@ -69,5 +73,5 @@ func (h *HelpModal) Update(msg tea.Msg) (bool, tea.Cmd) {
 }
 
 func (h *HelpModal) View(width, height int) string {
-	return h.dashboard.renderHelpModalWithViewport(&h.viewport, width, height)
+	return h.renderView(&h.viewport, width, height)
 }

@@ -7,14 +7,18 @@ import (
 
 // PatternsModal displays all log patterns.
 type PatternsModal struct {
-	dashboard *DashboardModel
-	viewport  viewport.Model
+	ctx        ModalContext
+	viewport   viewport.Model
+	renderView func(vp *viewport.Model, width, height int) string
 }
 
 func NewPatternsModal(m *DashboardModel) *PatternsModal {
 	return &PatternsModal{
-		dashboard: m,
-		viewport:  viewport.New(80, 20),
+		ctx:      m.modalContext(),
+		viewport: viewport.New(80, 20),
+		renderView: func(vp *viewport.Model, width, height int) string {
+			return m.renderPatternsModalWithViewport(vp, width, height)
+		},
 	}
 }
 
@@ -48,14 +52,14 @@ func (p *PatternsModal) Update(msg tea.Msg) (bool, tea.Cmd) {
 		case tea.MouseActionPress:
 			switch msg.Button {
 			case tea.MouseButtonWheelUp:
-				if p.dashboard.reverseScrollWheel {
+				if p.ctx.ReverseScrollWheel {
 					p.viewport.ScrollDown(1)
 				} else {
 					p.viewport.ScrollUp(1)
 				}
 				return false, nil
 			case tea.MouseButtonWheelDown:
-				if p.dashboard.reverseScrollWheel {
+				if p.ctx.ReverseScrollWheel {
 					p.viewport.ScrollUp(1)
 				} else {
 					p.viewport.ScrollDown(1)
@@ -69,5 +73,5 @@ func (p *PatternsModal) Update(msg tea.Msg) (bool, tea.Cmd) {
 }
 
 func (p *PatternsModal) View(width, height int) string {
-	return p.dashboard.renderPatternsModalWithViewport(&p.viewport, width, height)
+	return p.renderView(&p.viewport, width, height)
 }

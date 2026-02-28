@@ -6,6 +6,7 @@ import (
 	"github.com/tinytelemetry/lotus/internal/model"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type tickDataLoadedMsg struct {
@@ -29,6 +30,9 @@ func (m *DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		m.viewStyle = lipgloss.NewStyle().
+			Height(m.height).
+			MaxWidth(m.width)
 		m.initializeDecks()
 		_, _, logsH := m.layoutHeights()
 		m.clampInstructionsScroll(logsH)
@@ -473,7 +477,7 @@ func (m *DashboardModel) handleDeckTick(msg DeckTickMsg) (tea.Model, tea.Cmd) {
 
 	// Find one TickableDeck instance with this TypeID and issue its FetchCmd.
 	var fetchCmd tea.Cmd
-	for _, vw := range m.views {
+	for _, vw := range m.allViews() {
 		for _, dk := range vw.Decks {
 			if tp, ok := dk.(TickableDeck); ok && tp.TypeID() == msg.DeckTypeID {
 				state.FetchInFlight = true
@@ -512,7 +516,7 @@ func (m *DashboardModel) handleDeckData(msg DeckDataMsg) (tea.Model, tea.Cmd) {
 	}
 
 	// Apply data to ALL instances of this TypeID across ALL pages.
-	for _, vw := range m.views {
+	for _, vw := range m.allViews() {
 		for _, dk := range vw.Decks {
 			if tp, ok := dk.(TickableDeck); ok && tp.TypeID() == msg.DeckTypeID {
 				tp.ApplyData(msg.Data, msg.Err)
@@ -538,7 +542,7 @@ func (m *DashboardModel) registerDeckTicks() []tea.Cmd {
 	seen := make(map[string]bool)
 	var cmds []tea.Cmd
 
-	for _, vw := range m.views {
+	for _, vw := range m.allViews() {
 		for _, dk := range vw.Decks {
 			tp, ok := dk.(TickableDeck)
 			if !ok {

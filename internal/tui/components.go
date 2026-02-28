@@ -51,36 +51,30 @@ func (m *DashboardModel) renderStatusLine() string {
 	narrow := w < 80
 	medium := w < 120
 
-	// Build left section (current section indicator)
-	var sectionName string
-	switch m.activeSection {
-	case SectionDecks:
-		if m.activeDeckIdx < len(m.decks) {
-			viewTitle := m.currentViewTitle()
-			if viewTitle != "" {
-				sectionName = fmt.Sprintf("%s/%s", viewTitle, m.decks[m.activeDeckIdx].Title())
-			} else {
-				sectionName = m.decks[m.activeDeckIdx].Title()
+	// Build left section: view tabs for the active page
+	if !m.filterActive && !m.searchActive {
+		pg := m.activePage()
+		if pg != nil && len(pg.Views) > 1 && !veryNarrow {
+			var tabs []string
+			for i, vw := range pg.Views {
+				if i == pg.ActiveViewIdx {
+					tab := lipgloss.NewStyle().
+						Background(ColorNavy).
+						Foreground(ColorBlue).
+						Bold(true).
+						Render(vw.Title)
+					tabs = append(tabs, tab)
+				} else {
+					tab := lipgloss.NewStyle().
+						Background(ColorNavy).
+						Foreground(ColorGray).
+						Render(vw.Title)
+					tabs = append(tabs, tab)
+				}
 			}
-		}
-	case SectionLogs:
-		viewTitle := m.currentViewTitle()
-		if viewTitle != "" {
-			sectionName = fmt.Sprintf("%s/Logs", viewTitle)
-		} else {
-			sectionName = "Logs"
-		}
-	case SectionFilter:
-		sectionName = "Filter"
-	}
-
-	if sectionName != "" && !m.filterActive && !m.searchActive {
-		name := sectionName
-		if veryNarrow {
-			// Use abbreviated names for very narrow terminals
-			leftText = name[:min(5, len(name))]
-		} else {
-			leftText = fmt.Sprintf("[%s]", name)
+			leftText = strings.Join(tabs, baseStyle.Render(" "))
+		} else if pg != nil && len(pg.Views) == 1 {
+			leftText = baseStyle.Render(pg.Views[0].Title)
 		}
 	}
 

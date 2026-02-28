@@ -14,6 +14,13 @@ type ViewContext struct {
 	DeckLastError string // per-deck last error (set per render)
 }
 
+// ModalContext provides read-only context to modals for rendering, replacing
+// direct access to *DashboardModel. Modals that need to render delegate to
+// stored render callbacks, which capture the dashboard internally.
+type ModalContext struct {
+	ReverseScrollWheel bool
+}
+
 // Action identifies what a panel wants the dashboard to do.
 type Action int
 
@@ -26,7 +33,7 @@ const (
 // without mutating it directly.
 type ActionMsg struct {
 	Action  Action
-	Payload interface{}
+	Payload any
 }
 
 // actionMsg wraps ActionMsg as a tea.Msg.

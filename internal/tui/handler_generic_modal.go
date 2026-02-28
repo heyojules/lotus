@@ -9,30 +9,42 @@ import (
 
 // DetailModal displays detail content (log details or top values).
 type DetailModal struct {
-	dashboard    *DashboardModel
-	viewport     viewport.Model
-	content      string
-	logEntry     *model.LogRecord // non-nil for log details view
+	ctx        ModalContext
+	viewport   viewport.Model
+	content    string
+	logEntry   *model.LogRecord // non-nil for log details view
+	renderView func(vp *viewport.Model, width, height int) string
 }
 
 func NewDetailModal(m *DashboardModel, entry *model.LogRecord) *DetailModal {
 	dm := &DetailModal{
-		dashboard: m,
-		viewport:  viewport.New(80, 20),
-		logEntry:  entry,
+		ctx:      m.modalContext(),
+		viewport: viewport.New(80, 20),
+		logEntry: entry,
 	}
 	if entry != nil {
 		dm.content = m.formatLogDetails(*entry, 60)
+		dm.renderView = func(vp *viewport.Model, width, height int) string {
+			return m.renderSplitModalView(vp, dm.logEntry, width, height)
+		}
+	} else {
+		dm.renderView = func(vp *viewport.Model, width, height int) string {
+			return m.renderSingleModalView(vp, dm.content, width, height)
+		}
 	}
 	return dm
 }
 
 func NewDetailModalWithContent(m *DashboardModel, content string) *DetailModal {
-	return &DetailModal{
-		dashboard: m,
-		viewport:  viewport.New(80, 20),
-		content:   content,
+	dm := &DetailModal{
+		ctx:      m.modalContext(),
+		viewport: viewport.New(80, 20),
+		content:  content,
 	}
+	dm.renderView = func(vp *viewport.Model, width, height int) string {
+		return m.renderSingleModalView(vp, dm.content, width, height)
+	}
+	return dm
 }
 
 func (d *DetailModal) ID() string { return "detail" }
@@ -65,14 +77,14 @@ func (d *DetailModal) Update(msg tea.Msg) (bool, tea.Cmd) {
 		case tea.MouseActionPress:
 			switch msg.Button {
 			case tea.MouseButtonWheelUp:
-				if d.dashboard.reverseScrollWheel {
+				if d.ctx.ReverseScrollWheel {
 					d.viewport.ScrollDown(1)
 				} else {
 					d.viewport.ScrollUp(1)
 				}
 				return false, nil
 			case tea.MouseButtonWheelDown:
-				if d.dashboard.reverseScrollWheel {
+				if d.ctx.ReverseScrollWheel {
 					d.viewport.ScrollUp(1)
 				} else {
 					d.viewport.ScrollDown(1)
@@ -86,8 +98,5 @@ func (d *DetailModal) Update(msg tea.Msg) (bool, tea.Cmd) {
 }
 
 func (d *DetailModal) View(width, height int) string {
-	if d.logEntry != nil {
-		return d.dashboard.renderSplitModalView(&d.viewport, d.logEntry, width, height)
-	}
-	return d.dashboard.renderSingleModalView(&d.viewport, d.content, width, height)
+	return d.renderView(&d.viewport, width, height)
 }

@@ -3,13 +3,14 @@ package tui
 import (
 	"fmt"
 
+	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 // handleKeyPress dispatches key events: modal stack first, then inline
 // handlers (filter/search), then global dashboard shortcuts.
 func (m *DashboardModel) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	if msg.String() == "ctrl+c" {
+	if key.Matches(msg, m.keys.ForceQuit) {
 		return m, tea.Quit
 	}
 
@@ -39,11 +40,13 @@ func (m *DashboardModel) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 // handleGlobalKeys handles dashboard-level shortcuts.
 // Only reached when no modal is on the stack and no inline handler is active.
 func (m *DashboardModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "q":
+	k := m.keys
+
+	switch {
+	case key.Matches(msg, k.Quit):
 		return m, tea.Quit
 
-	case "escape", "esc":
+	case key.Matches(msg, k.Escape):
 		// Clear applied filter/search even when not in input mode
 		if m.filterRegex != nil || m.filterInput.Value() != "" || m.searchTerm != "" || m.searchInput.Value() != "" {
 			m.filterActive = false
@@ -63,11 +66,11 @@ func (m *DashboardModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-	case "?", "h":
+	case key.Matches(msg, k.Help):
 		m.PushModal(NewHelpModal(m))
 		return m, nil
 
-	case "/":
+	case key.Matches(msg, k.Filter):
 		if m.filterRegex != nil || m.filterInput.Value() != "" {
 			m.activeSection = SectionFilter
 			m.filterActive = true
@@ -81,7 +84,7 @@ func (m *DashboardModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case "s":
+	case key.Matches(msg, k.Search):
 		if m.searchTerm != "" || m.searchInput.Value() != "" {
 			m.activeSection = SectionFilter
 			m.searchActive = true
@@ -95,11 +98,11 @@ func (m *DashboardModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case "r":
+	case key.Matches(msg, k.ResetPatterns):
 		m.drain3LastProcessed = 0
 		return m, func() tea.Msg { return ManualResetMsg{} }
 
-	case "a":
+	case key.Matches(msg, k.ToggleSidebar):
 		m.sidebarVisible = !m.sidebarVisible
 		if m.sidebarVisible && m.activeSection != SectionSidebar {
 			if m.store != nil {
@@ -111,23 +114,23 @@ func (m *DashboardModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case "]":
+	case key.Matches(msg, k.NextView):
 		m.nextView()
 		return m, nil
 
-	case "[":
+	case key.Matches(msg, k.PrevView):
 		m.prevView()
 		return m, nil
 
-	case "c":
+	case key.Matches(msg, k.ToggleColumns):
 		m.showColumns = !m.showColumns
 		return m, nil
 
-	case "T":
+	case key.Matches(msg, k.ToggleTimestamp):
 		m.useLogTime = !m.useLogTime
 		return m, nil
 
-	case "i":
+	case key.Matches(msg, k.Inspect):
 		if m.activeSection == SectionLogs {
 			if m.selectedLogIndex >= 0 && m.selectedLogIndex < len(m.logEntries) {
 				entry := m.logEntries[m.selectedLogIndex]
@@ -138,7 +141,7 @@ func (m *DashboardModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case "f":
+	case key.Matches(msg, k.LogViewer):
 		if len(m.logEntries) > 0 {
 			m.selectedLogIndex = len(m.logEntries) - 1
 		} else {
@@ -147,11 +150,11 @@ func (m *DashboardModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.PushModal(NewLogViewerModal(m))
 		return m, nil
 
-	case "ctrl+f":
+	case key.Matches(msg, k.SeverityFilter):
 		m.PushModal(NewSeverityFilterModal(m))
 		return m, nil
 
-	case "p":
+	case key.Matches(msg, k.DeckPause):
 		// Per-deck pause: toggle pause on focused deck's TypeID
 		if m.activeSection == SectionDecks && m.activeDeckIdx < len(m.decks) {
 			if tp, ok := m.decks[m.activeDeckIdx].(TickableDeck); ok {
@@ -163,11 +166,11 @@ func (m *DashboardModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case " ":
+	case key.Matches(msg, k.Pause):
 		m.viewPaused = !m.viewPaused
 		return m, nil
 
-	case "u":
+	case key.Matches(msg, k.IntervalUp):
 		m.currentIntervalIdx = (m.currentIntervalIdx + 1) % len(m.availableIntervals)
 		newInterval := m.availableIntervals[m.currentIntervalIdx]
 		m.updateInterval = newInterval
@@ -176,7 +179,7 @@ func (m *DashboardModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.PushModal(NewDetailModalWithContent(m, content))
 		return m, func() tea.Msg { return UpdateIntervalMsg(newInterval) }
 
-	case "U":
+	case key.Matches(msg, k.IntervalDown):
 		m.currentIntervalIdx = (m.currentIntervalIdx - 1 + len(m.availableIntervals)) % len(m.availableIntervals)
 		newInterval := m.availableIntervals[m.currentIntervalIdx]
 		m.updateInterval = newInterval
@@ -188,30 +191,30 @@ func (m *DashboardModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	// Sidebar navigation
 	if m.activeSection == SectionSidebar && m.sidebarVisible {
-		switch msg.String() {
-		case "up", "k":
+		switch {
+		case key.Matches(msg, k.Up):
 			m.moveSidebarCursor(-1)
 			return m, nil
-		case "down", "j":
+		case key.Matches(msg, k.Down):
 			m.moveSidebarCursor(1)
 			return m, nil
-		case "enter":
+		case key.Matches(msg, k.Enter):
 			m.activateSidebarCursor()
 			return m, nil
 		}
 	}
 
 	// Navigation shortcuts
-	switch msg.String() {
-	case "tab":
+	switch {
+	case key.Matches(msg, k.NextSection):
 		m.nextSection()
 		return m, nil
 
-	case "shift+tab":
+	case key.Matches(msg, k.PrevSection):
 		m.prevSection()
 		return m, nil
 
-	case "up", "k":
+	case key.Matches(msg, k.Up):
 		if m.activeSection == SectionLogs && len(m.logEntries) <= 0 {
 			if m.instructionsScrollOffset > 0 {
 				m.instructionsScrollOffset--
@@ -221,7 +224,7 @@ func (m *DashboardModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.moveSelection(-1)
 		return m, nil
 
-	case "down", "j":
+	case key.Matches(msg, k.Down):
 		if m.activeSection == SectionLogs && len(m.logEntries) <= 0 {
 			m.instructionsScrollOffset++
 			return m, nil
@@ -229,7 +232,7 @@ func (m *DashboardModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.moveSelection(1)
 		return m, nil
 
-	case "home":
+	case key.Matches(msg, k.Home):
 		if m.activeSection == SectionLogs {
 			if len(m.logEntries) <= 0 {
 				m.instructionsScrollOffset = 0
@@ -240,7 +243,7 @@ func (m *DashboardModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-	case "end":
+	case key.Matches(msg, k.End):
 		if m.activeSection == SectionLogs {
 			if len(m.logEntries) <= 0 {
 				m.instructionsScrollOffset = 9999
@@ -251,7 +254,7 @@ func (m *DashboardModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-	case "pgup":
+	case key.Matches(msg, k.PageUp):
 		if m.activeSection == SectionLogs {
 			if len(m.logEntries) <= 0 {
 				m.instructionsScrollOffset = max(0, m.instructionsScrollOffset-5)
@@ -264,7 +267,7 @@ func (m *DashboardModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-	case "pgdown", "pagedown":
+	case key.Matches(msg, k.PageDown):
 		if m.activeSection == SectionLogs {
 			if len(m.logEntries) <= 0 {
 				m.instructionsScrollOffset += 5
@@ -278,7 +281,7 @@ func (m *DashboardModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-	case "enter":
+	case key.Matches(msg, k.Enter):
 		return m.showDetails()
 	}
 

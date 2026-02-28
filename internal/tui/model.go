@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 // Section represents different dashboard sections
@@ -89,8 +90,16 @@ type NavigationState struct {
 	activeDeckIdx int
 	decks         []Deck
 	deckSelIdx    []int
-	views      []ViewState
-	activeViewIdx  int
+	pages         []PageState
+	activePageIdx int
+}
+
+// PageState represents a top-level page (e.g. Logs, Metrics) shown in the sidebar.
+type PageState struct {
+	ID            string
+	Title         string
+	Views         []ViewState
+	ActiveViewIdx int
 }
 
 // ViewState represents one right-side view composed of independent decks.
@@ -110,6 +119,13 @@ type DeckDeps struct {
 	PushPatternsModal tea.Cmd
 	FormatAttrModal  func(entry *AttributeEntry, maxWidth int) string
 	PushContentModal func(content string) tea.Cmd
+}
+
+// PageSpec defines a top-level page and the views it contains.
+type PageSpec struct {
+	ID        string
+	Title     string
+	ViewSpecs []ViewSpec
 }
 
 // ViewSpec defines how to build a view and its decks.
@@ -144,8 +160,14 @@ type DashboardModel struct {
 	width  int
 	height int
 
+	// Cached view style (updated on resize only).
+	viewStyle lipgloss.Style
+
 	// Drain3 pattern extraction (per-severity instances for counts modal)
 	drain3BySeverity map[string]*Drain3Manager // Separate drain3 instance for each severity
+
+	// Key bindings
+	keys KeyMap
 
 	// Configuration
 	updateInterval     time.Duration
@@ -207,7 +229,7 @@ type DeckTickMsg struct {
 // DeckDataMsg carries fetched data back to a deck type.
 type DeckDataMsg struct {
 	DeckTypeID string
-	Data        interface{}
+	Data        any
 	Err         error
 }
 
@@ -280,6 +302,7 @@ func NewDashboardModel(maxLogBuffer int, updateInterval time.Duration, reverseSc
 			showColumns:   true,
 		},
 
+		keys:               DefaultKeyMap(),
 		updateInterval:     updateInterval,
 		reverseScrollWheel: reverseScrollWheel,
 		useLogTime:         useLogTime,
@@ -301,7 +324,7 @@ func NewDashboardModel(maxLogBuffer int, updateInterval time.Duration, reverseSc
 		dataSource:  dataSource,
 	}
 
-	m.SetViews(DefaultViewSpecs())
+	m.SetPages(DefaultPageSpecs())
 
 	// Register inline handlers for filter/search input (NOT modals).
 	m.inlineHandlers = []inlineHandlerEntry{
@@ -330,8 +353,19 @@ func (m *DashboardModel) SetDecks(panels []Deck) {
 	m.persistActiveViewState()
 }
 
-// SetViews configures right-side views and activates the first one.
-func (m *DashboardModel) SetViews(specs []ViewSpec) {
+// allViews returns a flat slice of pointers to every ViewState across all pages.
+func (m *DashboardModel) allViews() []*ViewState {
+	var out []*ViewState
+	for pi := range m.pages {
+		for vi := range m.pages[pi].Views {
+			out = append(out, &m.pages[pi].Views[vi])
+		}
+	}
+	return out
+}
+
+// SetPages configures top-level pages (each containing views) and activates the first page.
+func (m *DashboardModel) SetPages(specs []PageSpec) {
 	deps := DeckDeps{
 		Store:             m.store,
 		Drain3Manager:     m.drain3Manager,
@@ -341,73 +375,112 @@ func (m *DashboardModel) SetViews(specs []ViewSpec) {
 		PushContentModal:  m.pushContentModalCmd(),
 	}
 
-	pages := make([]ViewState, 0, len(specs))
-	for _, spec := range specs {
-		if spec.Build == nil {
-			continue
+	pages := make([]PageState, 0, len(specs))
+	for _, ps := range specs {
+		page := PageState{
+			ID:    ps.ID,
+			Title: ps.Title,
 		}
-		panels := spec.Build(deps)
-		state := ViewState{
-			ID:             spec.ID,
-			Title:          spec.Title,
-			Decks:         append([]Deck(nil), panels...),
-			DeckSelIdx:    make([]int, len(panels)),
-			ActiveDeckIdx: 0,
+		for _, vs := range ps.ViewSpecs {
+			if vs.Build == nil {
+				continue
+			}
+			panels := vs.Build(deps)
+			view := ViewState{
+				ID:            vs.ID,
+				Title:         vs.Title,
+				Decks:         append([]Deck(nil), panels...),
+				DeckSelIdx:    make([]int, len(panels)),
+				ActiveDeckIdx: 0,
+			}
+			page.Views = append(page.Views, view)
 		}
-		pages = append(pages, state)
+		pages = append(pages, page)
 	}
 
 	if len(pages) == 0 {
-		m.views = nil
+		m.pages = nil
 		m.decks = nil
 		m.deckSelIdx = nil
 		m.activeDeckIdx = 0
-		m.activeViewIdx = 0
+		m.activePageIdx = 0
 		m.sidebarCursor = 0
 		return
 	}
 
-	m.views = pages
-	m.activeViewIdx = -1
+	m.pages = pages
+	m.activePageIdx = -1
 	m.sidebarCursor = 0
-	m.activateView(0)
+	m.activatePage(0)
 }
 
-// DefaultViewSpecs declares built-in views and their decks.
-func DefaultViewSpecs() []ViewSpec {
-	return []ViewSpec{
+// DefaultPageSpecs declares the built-in pages, each containing view specs.
+func DefaultPageSpecs() []PageSpec {
+	return []PageSpec{
 		{
-			ID:    "overview",
-			Title: "Overview",
-			Build: func(deps DeckDeps) []Deck {
-				return []Deck{
-					NewWordsDeck(),
-					NewAttributesDeck(deps.Store, deps.FormatAttrModal, deps.PushContentModal),
-					NewPatternsDeck(deps.Drain3Manager, deps.PushPatternsModal),
-					NewCountsDeck(deps.PushCountsModal),
-				}
+			ID:    "logs",
+			Title: "Logs",
+			ViewSpecs: []ViewSpec{
+				{
+					ID:    "overview",
+					Title: "Overview",
+					Build: func(deps DeckDeps) []Deck {
+						return []Deck{
+							NewWordsDeck(),
+							NewAttributesDeck(deps.Store, deps.FormatAttrModal, deps.PushContentModal),
+							NewPatternsDeck(deps.Drain3Manager, deps.PushPatternsModal),
+							NewCountsDeck(deps.PushCountsModal),
+						}
+					},
+				},
+				{
+					ID:    "patterns",
+					Title: "Patterns",
+					Build: func(deps DeckDeps) []Deck {
+						return []Deck{
+							NewPatternsDeck(deps.Drain3Manager, deps.PushPatternsModal),
+							NewCountsDeck(deps.PushCountsModal),
+							NewWordsDeck(),
+						}
+					},
+				},
+				{
+					ID:    "attributes",
+					Title: "Attributes",
+					Build: func(deps DeckDeps) []Deck {
+						return []Deck{
+							NewAttributesDeck(deps.Store, deps.FormatAttrModal, deps.PushContentModal),
+							NewWordsDeck(),
+							NewCountsDeck(deps.PushCountsModal),
+						}
+					},
+				},
 			},
 		},
 		{
-			ID:    "patterns",
-			Title: "Patterns",
-			Build: func(deps DeckDeps) []Deck {
-				return []Deck{
-					NewPatternsDeck(deps.Drain3Manager, deps.PushPatternsModal),
-					NewCountsDeck(deps.PushCountsModal),
-					NewWordsDeck(),
-				}
+			ID:    "metrics",
+			Title: "Metrics",
+			ViewSpecs: []ViewSpec{
+				{
+					ID:    "metrics-overview",
+					Title: "Overview",
+					Build: func(deps DeckDeps) []Deck {
+						return nil // Placeholder — no decks yet
+					},
+				},
 			},
 		},
 		{
-			ID:    "attributes",
-			Title: "Attributes",
-			Build: func(deps DeckDeps) []Deck {
-				return []Deck{
-					NewAttributesDeck(deps.Store, deps.FormatAttrModal, deps.PushContentModal),
-					NewWordsDeck(),
-					NewCountsDeck(deps.PushCountsModal),
-				}
+			ID:    "analytics",
+			Title: "Analytics",
+			ViewSpecs: []ViewSpec{
+				{
+					ID:    "analytics-overview",
+					Title: "Overview",
+					Build: func(deps DeckDeps) []Deck {
+						return nil // Placeholder — no decks yet
+					},
+				},
 			},
 		},
 	}
@@ -439,32 +512,86 @@ func (m *DashboardModel) pushContentModalCmd() func(content string) tea.Cmd {
 	}
 }
 
+// activePage returns a pointer to the active page, or nil.
+func (m *DashboardModel) activePage() *PageState {
+	if len(m.pages) == 0 || m.activePageIdx < 0 || m.activePageIdx >= len(m.pages) {
+		return nil
+	}
+	return &m.pages[m.activePageIdx]
+}
+
+// activeViewInPage returns the active view within the active page, or nil.
+func (m *DashboardModel) activeViewInPage() *ViewState {
+	pg := m.activePage()
+	if pg == nil || len(pg.Views) == 0 || pg.ActiveViewIdx < 0 || pg.ActiveViewIdx >= len(pg.Views) {
+		return nil
+	}
+	return &pg.Views[pg.ActiveViewIdx]
+}
+
 func (m *DashboardModel) persistActiveViewState() {
-	if len(m.views) == 0 || m.activeViewIdx < 0 || m.activeViewIdx >= len(m.views) {
+	vw := m.activeViewInPage()
+	if vw == nil {
 		return
 	}
-
-	vw := &m.views[m.activeViewIdx]
 	vw.Decks = append([]Deck(nil), m.decks...)
 	vw.DeckSelIdx = append([]int(nil), m.deckSelIdx...)
 	vw.ActiveDeckIdx = m.activeDeckIdx
 }
 
-func (m *DashboardModel) activateView(idx int) {
-	if len(m.views) == 0 || idx < 0 || idx >= len(m.views) {
+// activatePage switches to a page by index, activating its last-used view.
+func (m *DashboardModel) activatePage(idx int) {
+	if len(m.pages) == 0 || idx < 0 || idx >= len(m.pages) {
 		return
 	}
+	m.persistActiveViewState()
+	m.activePageIdx = idx
 
-	if idx != m.activeViewIdx || len(m.decks) > 0 || len(m.deckSelIdx) > 0 {
+	pg := &m.pages[m.activePageIdx]
+	if len(pg.Views) == 0 {
+		m.decks = nil
+		m.deckSelIdx = nil
+		m.activeDeckIdx = 0
+		return
+	}
+	if pg.ActiveViewIdx < 0 || pg.ActiveViewIdx >= len(pg.Views) {
+		pg.ActiveViewIdx = 0
+	}
+	m.loadView(&pg.Views[pg.ActiveViewIdx])
+}
+
+func (m *DashboardModel) nextPage() {
+	if len(m.pages) <= 1 {
+		return
+	}
+	m.activatePage((m.activePageIdx + 1) % len(m.pages))
+}
+
+func (m *DashboardModel) prevPage() {
+	if len(m.pages) <= 1 {
+		return
+	}
+	m.activatePage((m.activePageIdx - 1 + len(m.pages)) % len(m.pages))
+}
+
+// activateView switches views within the active page.
+func (m *DashboardModel) activateView(idx int) {
+	pg := m.activePage()
+	if pg == nil || len(pg.Views) == 0 || idx < 0 || idx >= len(pg.Views) {
+		return
+	}
+	if idx != pg.ActiveViewIdx || len(m.decks) > 0 || len(m.deckSelIdx) > 0 {
 		m.persistActiveViewState()
 	}
-	m.activeViewIdx = idx
+	pg.ActiveViewIdx = idx
+	m.loadView(&pg.Views[idx])
+}
 
-	vw := &m.views[m.activeViewIdx]
+// loadView copies a ViewState's decks into the flat navigation fields.
+func (m *DashboardModel) loadView(vw *ViewState) {
 	if len(vw.DeckSelIdx) != len(vw.Decks) {
 		vw.DeckSelIdx = make([]int, len(vw.Decks))
 	}
-
 	m.decks = append([]Deck(nil), vw.Decks...)
 	m.deckSelIdx = append([]int(nil), vw.DeckSelIdx...)
 
@@ -472,7 +599,6 @@ func (m *DashboardModel) activateView(idx int) {
 		m.activeDeckIdx = 0
 		return
 	}
-
 	if vw.ActiveDeckIdx < 0 || vw.ActiveDeckIdx >= len(m.decks) {
 		vw.ActiveDeckIdx = 0
 	}
@@ -480,29 +606,47 @@ func (m *DashboardModel) activateView(idx int) {
 }
 
 func (m *DashboardModel) nextView() {
-	if len(m.views) <= 1 {
+	pg := m.activePage()
+	if pg == nil || len(pg.Views) <= 1 {
 		return
 	}
-	m.activateView((m.activeViewIdx + 1) % len(m.views))
+	m.activateView((pg.ActiveViewIdx + 1) % len(pg.Views))
 }
 
 func (m *DashboardModel) prevView() {
-	if len(m.views) <= 1 {
+	pg := m.activePage()
+	if pg == nil || len(pg.Views) <= 1 {
 		return
 	}
-	m.activateView((m.activeViewIdx - 1 + len(m.views)) % len(m.views))
+	m.activateView((pg.ActiveViewIdx - 1 + len(pg.Views)) % len(pg.Views))
 }
 
 func (m *DashboardModel) currentViewTitle() string {
-	if len(m.views) == 0 || m.activeViewIdx < 0 || m.activeViewIdx >= len(m.views) {
+	vw := m.activeViewInPage()
+	if vw == nil {
 		return ""
 	}
-	return m.views[m.activeViewIdx].Title
+	return vw.Title
+}
+
+func (m *DashboardModel) currentPageTitle() string {
+	pg := m.activePage()
+	if pg == nil {
+		return ""
+	}
+	return pg.Title
 }
 
 // queryOpts returns the current QueryOpts based on selected app.
 func (m *DashboardModel) queryOpts() model.QueryOpts {
 	return model.QueryOpts{App: m.selectedApp}
+}
+
+// modalContext builds a ModalContext snapshot for modal construction.
+func (m *DashboardModel) modalContext() ModalContext {
+	return ModalContext{
+		ReverseScrollWheel: m.reverseScrollWheel,
+	}
 }
 
 // viewContext builds a ViewContext snapshot for deck rendering.
@@ -568,7 +712,7 @@ func (m *DashboardModel) Init() tea.Cmd {
 	var cmds []tea.Cmd
 
 	// Enable mouse support
-	cmds = append(cmds, func() tea.Msg { return tea.EnableMouseCellMotion() })
+	cmds = append(cmds, tea.EnableMouseCellMotion)
 
 	// Set up regular tick for dashboard updates (core tick)
 	cmds = append(cmds, tea.Tick(m.updateInterval, func(t time.Time) tea.Msg {

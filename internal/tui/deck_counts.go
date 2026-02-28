@@ -45,7 +45,7 @@ func (p *CountsDeck) FetchCmd(store model.LogQuerier, opts model.QueryOpts) tea.
 	}
 }
 
-func (p *CountsDeck) ApplyData(data interface{}, err error) {
+func (p *CountsDeck) ApplyData(data any, err error) {
 	if err != nil {
 		return
 	}

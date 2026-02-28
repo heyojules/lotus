@@ -26,5 +26,5 @@ type TickableDeck interface {
 	TypeID() string                                               // dedup key (e.g. "words")
 	DefaultInterval() time.Duration                               // deck's preferred tick interval
 	FetchCmd(store model.LogQuerier, opts model.QueryOpts) tea.Cmd // returns DeckDataMsg
-	ApplyData(data interface{}, err error)                        // receive fetched data
+	ApplyData(data any, err error)                                // receive fetched data
 }
