@@ -13,7 +13,7 @@ const (
 	defaultTCPPort             = 4000
 	defaultMuxBufferSize       = DefaultMuxBuffer
 	defaultSkin                = model.DefaultSkin
-	defaultAPIPort             = 3000
+	defaultAPIPort             = 5000
 	defaultQueryTimeout        = 30 * time.Second
 	defaultMaxConcurrentReads  = 8
 	defaultInsertBatchSize     = 2000

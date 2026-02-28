@@ -437,22 +437,14 @@ func DefaultPageSpecs() []PageSpec {
 					ID:    "patterns",
 					Title: "Patterns",
 					Build: func(deps DeckDeps) []Deck {
-						return []Deck{
-							NewPatternsDeck(deps.Drain3Manager, deps.PushPatternsModal),
-							NewCountsDeck(deps.PushCountsModal),
-							NewWordsDeck(),
-						}
+						return nil // Placeholder — no decks yet
 					},
 				},
 				{
 					ID:    "attributes",
 					Title: "Attributes",
 					Build: func(deps DeckDeps) []Deck {
-						return []Deck{
-							NewAttributesDeck(deps.Store, deps.FormatAttrModal, deps.PushContentModal),
-							NewWordsDeck(),
-							NewCountsDeck(deps.PushCountsModal),
-						}
+						return nil // Placeholder — no decks yet
 					},
 				},
 			},
@@ -476,6 +468,32 @@ func DefaultPageSpecs() []PageSpec {
 			ViewSpecs: []ViewSpec{
 				{
 					ID:    "analytics-overview",
+					Title: "Overview",
+					Build: func(deps DeckDeps) []Deck {
+						return nil // Placeholder — no decks yet
+					},
+				},
+			},
+		},
+		{
+			ID:    "alerts",
+			Title: "Alerts",
+			ViewSpecs: []ViewSpec{
+				{
+					ID:    "alerts-overview",
+					Title: "Overview",
+					Build: func(deps DeckDeps) []Deck {
+						return nil // Placeholder — no decks yet
+					},
+				},
+			},
+		},
+		{
+			ID:    "healthchecks",
+			Title: "Healthchecks",
+			ViewSpecs: []ViewSpec{
+				{
+					ID:    "healthchecks-overview",
 					Title: "Overview",
 					Build: func(deps DeckDeps) []Deck {
 						return nil // Placeholder — no decks yet
