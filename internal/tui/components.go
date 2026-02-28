@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/lipgloss"
 )
@@ -158,8 +159,21 @@ func (m *DashboardModel) renderStatusLine() string {
 		}
 	}
 
+	// Add DB error indicator (auto-clears after 30s)
+	var dbErrorInfo string
+	if m.lastError != "" && time.Since(m.lastErrorAt) < 30*time.Second {
+		dbErrorStyle := lipgloss.NewStyle().
+			Background(ColorNavy).
+			Foreground(lipgloss.Color("#FF6666")).
+			Faint(true)
+		dbErrorInfo = dbErrorStyle.Render("DB error")
+	}
+
 	// Combine status info, timestamp mode, and version update
 	var rightParts []string
+	if dbErrorInfo != "" {
+		rightParts = append(rightParts, dbErrorInfo)
+	}
 	if dataSourceInfo != "" {
 		rightParts = append(rightParts, dataSourceInfo)
 	}
@@ -284,6 +298,28 @@ func (m *DashboardModel) renderFilter() string {
 	return minimalFilterStyle.Render(title + " " + content)
 }
 
+// clampInstructionsScroll clamps the instructions scroll offset to valid bounds.
+// Must be called from Update (after applyTickData and window resize) to keep
+// View pure / side-effect-free.
+func (m *DashboardModel) clampInstructionsScroll(availableLines int) {
+	if availableLines < 1 {
+		availableLines = 1
+	}
+	// The instructions list length is fixed; use the same constant set that
+	// renderLogScrollContent builds so the max-scroll calculation stays in sync.
+	const instructionsLen = 15 // base instruction lines (see renderLogScrollContent)
+	maxScroll := instructionsLen - availableLines + 1
+	if maxScroll < 0 {
+		maxScroll = 0
+	}
+	if m.instructionsScrollOffset > maxScroll {
+		m.instructionsScrollOffset = maxScroll
+	}
+	if m.instructionsScrollOffset < 0 {
+		m.instructionsScrollOffset = 0
+	}
+}
+
 // renderLogScrollContent generates the log content without border wrapper
 func (m *DashboardModel) renderLogScrollContent(height int, logWidth int) []string {
 	var logLines []string
@@ -388,26 +424,20 @@ func (m *DashboardModel) renderLogScrollContent(height int, logWidth int) []stri
 		}
 
 		if len(instructions) > availableLines {
-			// Add scroll indicators and implement scrolling
-			maxScroll := len(instructions) - availableLines + 1 // +1 for scroll indicator space
-			if m.instructionsScrollOffset > maxScroll {
-				m.instructionsScrollOffset = maxScroll
-			}
-			if m.instructionsScrollOffset < 0 {
-				m.instructionsScrollOffset = 0
-			}
+			// Scroll offset is already clamped in Update via clampInstructionsScroll.
+			scrollOffset := m.instructionsScrollOffset
 
 			// Add scroll up indicator if not at top
-			if m.instructionsScrollOffset > 0 {
+			if scrollOffset > 0 {
 				scrollUpIndicator := lipgloss.NewStyle().
 					Foreground(ColorGray).
-					Render(fmt.Sprintf("  ↑ %d more lines above", m.instructionsScrollOffset))
+					Render(fmt.Sprintf("  ↑ %d more lines above", scrollOffset))
 				logLines = append(logLines, scrollUpIndicator)
 				availableLines-- // Use one line for indicator
 			}
 
 			// Show visible portion of instructions
-			endIdx := m.instructionsScrollOffset + availableLines
+			endIdx := scrollOffset + availableLines
 			if endIdx > len(instructions) {
 				endIdx = len(instructions)
 			}
@@ -415,11 +445,11 @@ func (m *DashboardModel) renderLogScrollContent(height int, logWidth int) []stri
 			// Reserve space for bottom scroll indicator if needed
 			if endIdx < len(instructions) {
 				availableLines-- // Reserve space for bottom indicator
-				endIdx = m.instructionsScrollOffset + availableLines
+				endIdx = scrollOffset + availableLines
 			}
 
 			// Add visible instructions
-			visibleInstructions := instructions[m.instructionsScrollOffset:endIdx]
+			visibleInstructions := instructions[scrollOffset:endIdx]
 			logLines = append(logLines, visibleInstructions...)
 
 			// Add scroll down indicator if not at bottom

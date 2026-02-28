@@ -24,6 +24,7 @@ type tickDataLoadedMsg struct {
 	drain3Records   []model.LogRecord
 	drain3Processed int
 	hasDrain3       bool
+	lastError       string // first DB error encountered during this tick
 }
 
 // Update handles messages
@@ -35,6 +36,8 @@ func (m *DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.initializeCharts()
+		_, _, logsH := m.layoutHeights()
+		m.clampInstructionsScroll(logsH)
 
 	case tea.KeyMsg:
 		return m.handleKeyPress(msg)
@@ -104,6 +107,8 @@ func (m *DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tickDataLoadedMsg:
 		m.tickInFlight = false
 		m.applyTickData(msg)
+		_, _, logsH := m.layoutHeights()
+		m.clampInstructionsScroll(logsH)
 		// Visibility-aware refresh: only refresh modal data when it's visible.
 		if modal := m.TopModal(); modal != nil {
 			if r, ok := modal.(Refreshable); ok {
@@ -194,19 +199,7 @@ func (m *DashboardModel) handleMouseClick(x, y int) (tea.Model, tea.Cmd) {
 		contentWidth -= sidebarWidth
 	}
 
-	filterHeight := 0
-	if m.hasFilterOrSearch() {
-		filterHeight = 1
-	}
-	usableHeight := m.height - 1 - 2
-	chartsHeight := m.calculateRequiredChartsHeight()
-	maxChartsHeight := usableHeight - filterHeight - 3
-	if maxChartsHeight < 3 {
-		maxChartsHeight = 3
-	}
-	if chartsHeight > maxChartsHeight {
-		chartsHeight = maxChartsHeight
-	}
+	chartsHeight, filterHeight, _ := m.layoutHeights()
 
 	if y < chartsHeight {
 		if idx, ok := m.chartPanelAt(contentWidth, chartsHeight, x, y); ok {
@@ -258,26 +251,9 @@ func (m *DashboardModel) activeSeverityLevels() []string {
 }
 
 // visibleLogLines returns how many log lines fit on screen given the current
-// terminal dimensions, mirroring the layout calculation in renderDashboard.
+// terminal dimensions, using the shared layoutHeights calculation.
 func (m *DashboardModel) visibleLogLines() int {
-	statusLineHeight := 1
-	usableHeight := m.height - statusLineHeight - 2
-	filterHeight := 0
-	if m.hasFilterOrSearch() {
-		filterHeight = 1
-	}
-	chartsHeight := m.calculateRequiredChartsHeight()
-	maxChartsHeight := usableHeight - filterHeight - 3
-	if maxChartsHeight < 3 {
-		maxChartsHeight = 3
-	}
-	if chartsHeight > maxChartsHeight {
-		chartsHeight = maxChartsHeight
-	}
-	logsHeight := usableHeight - chartsHeight - filterHeight
-	if logsHeight < 3 {
-		logsHeight = 3
-	}
+	_, _, logsHeight := m.layoutHeights()
 	return logsHeight
 }
 
@@ -292,24 +268,39 @@ func (m *DashboardModel) fetchTickDataCmd(opts model.QueryOpts, severityLevels [
 	return func() tea.Msg {
 		msg := tickDataLoadedMsg{}
 
+		// collectErr records the first DB error encountered.
+		collectErr := func(err error) {
+			if err != nil && msg.lastError == "" {
+				msg.lastError = err.Error()
+			}
+		}
+
 		if v, err := store.TotalLogCount(opts); err == nil {
 			msg.totalCount = v
 			msg.hasTotalCount = true
+		} else {
+			collectErr(err)
 		}
 
 		if apps, err := store.ListApps(); err == nil {
 			msg.appList = apps
 			msg.hasAppList = true
+		} else {
+			collectErr(err)
 		}
 
 		if rows, err := store.SeverityCountsByMinute(opts); err == nil {
 			msg.countsHistory = minuteCountsToSeverity(rows)
 			msg.hasCounts = true
+		} else {
+			collectErr(err)
 		}
 
 		if words, err := store.TopWords(20, opts); err == nil {
 			msg.words = words
 			msg.hasWords = true
+		} else {
+			collectErr(err)
 		}
 
 		if attrKeys, err := store.TopAttributeKeys(20, opts); err == nil {
@@ -323,6 +314,8 @@ func (m *DashboardModel) fetchTickDataCmd(opts model.QueryOpts, severityLevels [
 			}
 			msg.attributes = entries
 			msg.hasAttributes = true
+		} else {
+			collectErr(err)
 		}
 
 		if msg.hasTotalCount && msg.totalCount > int64(drainFrom) {
@@ -339,6 +332,8 @@ func (m *DashboardModel) fetchTickDataCmd(opts model.QueryOpts, severityLevels [
 					msg.drain3Records = append([]model.LogRecord(nil), records[startIdx:]...)
 					msg.drain3Processed = int(msg.totalCount)
 					msg.hasDrain3 = true
+				} else {
+					collectErr(err)
 				}
 			}
 		}
@@ -349,6 +344,8 @@ func (m *DashboardModel) fetchTickDataCmd(opts model.QueryOpts, severityLevels [
 		} else if records, err := store.RecentLogsFiltered(logLimit, opts.App, severityCopy, messagePattern); err == nil {
 			msg.logEntries = records
 			msg.hasLogEntries = true
+		} else {
+			collectErr(err)
 		}
 
 		return msg
@@ -356,6 +353,14 @@ func (m *DashboardModel) fetchTickDataCmd(opts model.QueryOpts, severityLevels [
 }
 
 func (m *DashboardModel) applyTickData(msg tickDataLoadedMsg) {
+	// Surface DB errors to the status line; auto-clears on next successful tick.
+	if msg.lastError != "" {
+		m.lastError = msg.lastError
+		m.lastErrorAt = time.Now()
+	} else {
+		m.lastError = ""
+	}
+
 	if msg.hasTotalCount {
 		m.updateProcessingRateStats(msg.totalCount)
 	}

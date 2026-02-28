@@ -49,17 +49,17 @@ func TestSidebarActivation_SelectsPageAndApp(t *testing.T) {
 	m := NewDashboardModel(1000, time.Second, false, false, nil, "")
 	m.appList = []string{"api", "worker"}
 
-	// Select second page from sidebar.
+	// Select "worker" app from sidebar: api + worker.
 	m.sidebarCursor = 1
-	m.activateSidebarCursor()
-	if got := m.currentPageTitle(); got != m.deckPages[1].Title {
-		t.Fatalf("active page = %q, want %q", got, m.deckPages[1].Title)
-	}
-
-	// Select "worker" app from sidebar: pages + All + api + worker.
-	m.sidebarCursor = len(m.deckPages) + 2
 	m.activateSidebarCursor()
 	if got := m.selectedApp; got != "worker" {
 		t.Fatalf("selected app = %q, want worker", got)
+	}
+
+	// Select second page from sidebar: apps + pages.
+	m.sidebarCursor = len(m.appList) + 1
+	m.activateSidebarCursor()
+	if got := m.currentPageTitle(); got != m.deckPages[1].Title {
+		t.Fatalf("active page = %q, want %q", got, m.deckPages[1].Title)
 	}
 }

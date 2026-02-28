@@ -24,22 +24,17 @@ type sidebarItem struct {
 func (m *DashboardModel) sidebarItems() []sidebarItem {
 	items := make([]sidebarItem, 0, len(m.deckPages)+1+len(m.appList))
 
-	for i := range m.deckPages {
-		items = append(items, sidebarItem{
-			kind:    sidebarItemPage,
-			pageIdx: i,
-		})
-	}
-
-	items = append(items, sidebarItem{
-		kind:    sidebarItemApp,
-		appName: "",
-	})
-
 	for _, app := range m.appList {
 		items = append(items, sidebarItem{
 			kind:    sidebarItemApp,
 			appName: app,
+		})
+	}
+
+	for i := range m.deckPages {
+		items = append(items, sidebarItem{
+			kind:    sidebarItemPage,
+			pageIdx: i,
 		})
 	}
 
@@ -97,36 +92,8 @@ func (m *DashboardModel) buildSidebarLines() ([]string, map[int]int) {
 
 	cursor := 0
 
-	appendLine(lipgloss.NewStyle().Bold(true).Render("Pages"))
-	appendLine("")
-
-	for i, page := range m.deckPages {
-		label := fmt.Sprintf("  %s", page.Title)
-		if m.activePageIdx == i {
-			label = fmt.Sprintf("> %s", page.Title)
-		}
-		rowToCursor[len(lines)] = cursor
-		if m.activeSection == SectionSidebar && m.sidebarCursor == cursor {
-			label = lipgloss.NewStyle().Foreground(ColorBlue).Bold(true).Render(label)
-		}
-		appendLine(label)
-		cursor++
-	}
-
-	appendLine("")
 	appendLine(lipgloss.NewStyle().Bold(true).Render("Apps"))
 	appendLine("")
-
-	allLabel := "  All"
-	if m.selectedApp == "" {
-		allLabel = "> All"
-	}
-	rowToCursor[len(lines)] = cursor
-	if m.activeSection == SectionSidebar && m.sidebarCursor == cursor {
-		allLabel = lipgloss.NewStyle().Foreground(ColorBlue).Bold(true).Render(allLabel)
-	}
-	appendLine(allLabel)
-	cursor++
 
 	if len(m.appList) == 0 {
 		appendLine(lipgloss.NewStyle().Foreground(ColorGray).Render("  (no apps yet)"))
@@ -143,6 +110,23 @@ func (m *DashboardModel) buildSidebarLines() ([]string, map[int]int) {
 			label = label[:maxLabelWidth-1] + "~"
 		}
 
+		rowToCursor[len(lines)] = cursor
+		if m.activeSection == SectionSidebar && m.sidebarCursor == cursor {
+			label = lipgloss.NewStyle().Foreground(ColorBlue).Bold(true).Render(label)
+		}
+		appendLine(label)
+		cursor++
+	}
+
+	appendLine("")
+	appendLine(lipgloss.NewStyle().Bold(true).Render("Pages"))
+	appendLine("")
+
+	for i, page := range m.deckPages {
+		label := fmt.Sprintf("  %s", page.Title)
+		if m.activePageIdx == i {
+			label = fmt.Sprintf("> %s", page.Title)
+		}
 		rowToCursor[len(lines)] = cursor
 		if m.activeSection == SectionSidebar && m.sidebarCursor == cursor {
 			label = lipgloss.NewStyle().Foreground(ColorBlue).Bold(true).Render(label)

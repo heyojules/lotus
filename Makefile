@@ -14,7 +14,7 @@ LDFLAGS := -ldflags "-s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -
 
 DB_PATH := $(HOME)/.local/share/lotus/lotus.duckdb
 
-.PHONY: build build-lotus build-cli run run-cli test clean prune
+.PHONY: build build-lotus build-cli run run-cli dev test clean prune
 
 build: build-lotus build-cli
 
@@ -33,6 +33,12 @@ run: build-lotus
 
 run-cli: build-cli
 	@$(OUT_CLI)
+
+dev: build
+	@$(OUT) --config ./cmd/lotus/config.yml & LOTUS_PID=$$!; \
+	sleep 1; \
+	$(OUT_CLI); \
+	kill $$LOTUS_PID 2>/dev/null; wait $$LOTUS_PID 2>/dev/null
 
 test:
 	@go test ./...

@@ -16,6 +16,34 @@ func (m *DashboardModel) contentWidth() int {
 	return m.width
 }
 
+// layoutHeights computes the three main vertical layout sections so that both
+// renderDashboard and visibleLogLines share a single source of truth.
+func (m *DashboardModel) layoutHeights() (chartsHeight, filterHeight, logsHeight int) {
+	statusLineHeight := 1
+	usableHeight := m.height - statusLineHeight - 2
+
+	filterHeight = 0
+	if m.hasFilterOrSearch() {
+		filterHeight = 1
+	}
+
+	chartsHeight = m.calculateRequiredChartsHeight()
+	minLogsHeight := 3
+	maxChartsHeight := usableHeight - filterHeight - minLogsHeight
+	if maxChartsHeight < 3 {
+		maxChartsHeight = 3
+	}
+	if chartsHeight > maxChartsHeight {
+		chartsHeight = maxChartsHeight
+	}
+
+	logsHeight = usableHeight - chartsHeight - filterHeight
+	if logsHeight < minLogsHeight {
+		logsHeight = minLogsHeight
+	}
+	return
+}
+
 // hasFilterOrSearch returns true if a filter or search is active or applied
 func (m *DashboardModel) hasFilterOrSearch() bool {
 	return m.filterActive || m.searchActive ||
@@ -49,35 +77,7 @@ func (m *DashboardModel) renderDashboard() string {
 	contentWidth := m.contentWidth()
 	showSidebar := m.sidebarVisible
 
-	// Calculate required space for charts dynamically
-	requiredChartsHeight := m.calculateRequiredChartsHeight()
-
-	// Filter/Search height depends on whether filter or search is applied (or being edited)
-	filterHeight := 0 // No space when inactive
-	if m.hasFilterOrSearch() {
-		filterHeight = 1 // Single row for filter/search
-	}
-
-	// Reserve space for status line at bottom
-	statusLineHeight := 1
-
-	// Use full height for proper layout.
-	usableHeight := m.height - statusLineHeight - 2
-	minLogsHeight := 3
-	maxChartsHeight := usableHeight - filterHeight - minLogsHeight
-	if maxChartsHeight < 3 {
-		maxChartsHeight = 3
-	}
-
-	chartsHeight := requiredChartsHeight
-	if chartsHeight > maxChartsHeight {
-		chartsHeight = maxChartsHeight
-	}
-
-	logsHeight := usableHeight - chartsHeight - filterHeight
-	if logsHeight < minLogsHeight {
-		logsHeight = minLogsHeight
-	}
+	chartsHeight, _, logsHeight := m.layoutHeights()
 
 	// Top section: dynamic chart grid.
 	topSection := m.renderChartsGrid(contentWidth, chartsHeight)

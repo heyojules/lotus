@@ -156,6 +156,10 @@ type DashboardModel struct {
 	// Statistics tracking
 	stats StatsTracker
 
+	// Last DB error for status line display (auto-clears after 30s).
+	lastError   string
+	lastErrorAt time.Time
+
 	// Async tick query guard to avoid overlapping DB fetches.
 	tickInFlight bool
 
