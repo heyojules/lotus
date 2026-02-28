@@ -54,17 +54,22 @@ func (m *DashboardModel) renderStatusLine() string {
 	// Build left section (current section indicator)
 	var sectionName string
 	switch m.activeSection {
-	case SectionCharts:
-		if m.activePanelIdx < len(m.panels) {
-			page := m.currentPageTitle()
-			if page != "" {
-				sectionName = fmt.Sprintf("%s/%s", page, m.panels[m.activePanelIdx].Title())
+	case SectionDecks:
+		if m.activeDeckIdx < len(m.decks) {
+			viewTitle := m.currentViewTitle()
+			if viewTitle != "" {
+				sectionName = fmt.Sprintf("%s/%s", viewTitle, m.decks[m.activeDeckIdx].Title())
 			} else {
-				sectionName = m.panels[m.activePanelIdx].Title()
+				sectionName = m.decks[m.activeDeckIdx].Title()
 			}
 		}
 	case SectionLogs:
-		sectionName = "Logs"
+		viewTitle := m.currentViewTitle()
+		if viewTitle != "" {
+			sectionName = fmt.Sprintf("%s/Logs", viewTitle)
+		} else {
+			sectionName = "Logs"
+		}
 	case SectionFilter:
 		sectionName = "Filter"
 	}
@@ -98,9 +103,9 @@ func (m *DashboardModel) renderStatusLine() string {
 		} else if narrow {
 			statusText = "?: Help • ↑↓ Navigate • Enter: Details"
 		} else if medium {
-			statusText = "?: Help • ↑↓: Navigate • Home/End • PgUp/Dn • Enter: Details • []: Page"
+			statusText = "?: Help • ↑↓: Navigate • Home/End • PgUp/Dn • Enter: Details • []: View"
 		} else {
-			statusText = "?: Help • Wheel: scroll • ↑↓: Navigate • Home: Top • End: Latest • PgUp/PgDn: Page • []: Switch page • Enter: Details"
+			statusText = "?: Help • Wheel: scroll • ↑↓: Navigate • Home: Top • End: Latest • PgUp/PgDn: Page • []: Switch view • Enter: Details"
 		}
 	} else if m.HasModal() {
 		statusText = "ESC: Close"
@@ -109,11 +114,11 @@ func (m *DashboardModel) renderStatusLine() string {
 		if veryNarrow {
 			statusText = "Tab • Space • i • ? • q"
 		} else if narrow {
-			statusText = "?: Help • Tab: Nav • []: Page • Space: Pause • q: Quit"
+			statusText = "?: Help • Tab: Nav • []: View • Space: Pause • q: Quit"
 		} else if medium {
-			statusText = "Tab: Navigate • []: Switch Page • Space: Pause • i: Stats • Enter: Select • q: Quit"
+			statusText = "Tab: Navigate • []: Switch View • Space: Pause • i: Stats • Enter: Select • q: Quit"
 		} else {
-			statusText = "?: Help • Click sections • Wheel: scroll • []: Switch page • Space: Pause • Tab: Navigate • i: Stats • Enter: Select • q: Quit"
+			statusText = "?: Help • Click sections • Wheel: scroll • []: Switch view • Space: Pause • Tab: Navigate • i: Stats • Enter: Select • q: Quit"
 		}
 	}
 
@@ -143,10 +148,19 @@ func (m *DashboardModel) renderStatusLine() string {
 		}
 	}
 
-	// Add data source indicator
+	// Add data source connectivity indicator
 	var dataSourceInfo string
 	if m.dataSource != "" && !veryNarrow {
-		dataSourceInfo = m.dataSource
+		var dot string
+		stale := time.Since(m.lastTickAt) > 3*m.updateInterval
+		if !m.lastTickOK {
+			dot = lipgloss.NewStyle().Background(ColorNavy).Foreground(lipgloss.Color("#FF4444")).Render("●")
+		} else if stale {
+			dot = lipgloss.NewStyle().Background(ColorNavy).Foreground(lipgloss.Color("#FFAA00")).Render("●")
+		} else {
+			dot = lipgloss.NewStyle().Background(ColorNavy).Foreground(lipgloss.Color("#44FF44")).Render("●")
+		}
+		dataSourceInfo = dot + " " + m.dataSource
 	}
 
 	// Add timestamp mode indicator

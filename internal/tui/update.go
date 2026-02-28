@@ -13,12 +13,6 @@ type tickDataLoadedMsg struct {
 	hasTotalCount   bool
 	appList         []string
 	hasAppList      bool
-	countsHistory   []SeverityCounts
-	hasCounts       bool
-	words           []model.WordCount
-	hasWords        bool
-	attributes      []AttributeEntry
-	hasAttributes   bool
 	logEntries      []model.LogRecord
 	hasLogEntries   bool
 	drain3Records   []model.LogRecord
@@ -35,7 +29,7 @@ func (m *DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		m.initializeCharts()
+		m.initializeDecks()
 		_, _, logsH := m.layoutHeights()
 		m.clampInstructionsScroll(logsH)
 
@@ -117,6 +111,15 @@ func (m *DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case DeckTickMsg:
+		return m.handleDeckTick(msg)
+
+	case DeckDataMsg:
+		return m.handleDeckData(msg)
+
+	case DeckPauseMsg:
+		return m.handleDeckPause(msg)
+
 	}
 
 	return m, tea.Batch(cmds...)
@@ -184,7 +187,7 @@ func (m *DashboardModel) handleMouseClick(x, y int) (tea.Model, tea.Cmd) {
 		if x < sidebarWidth {
 			m.activeSection = SectionSidebar
 
-			// Sidebar rows are mixed pages + apps; resolve click via rendered rows.
+			// Sidebar rows are mixed views + apps; resolve click via rendered rows.
 			if idx, ok := m.sidebarCursorAtMouseRow(y); ok {
 				m.sidebarCursor = idx
 				m.activateSidebarCursor()
@@ -199,17 +202,17 @@ func (m *DashboardModel) handleMouseClick(x, y int) (tea.Model, tea.Cmd) {
 		contentWidth -= sidebarWidth
 	}
 
-	chartsHeight, filterHeight, _ := m.layoutHeights()
+	decksHeight, filterHeight, _ := m.layoutHeights()
 
-	if y < chartsHeight {
-		if idx, ok := m.chartPanelAt(contentWidth, chartsHeight, x, y); ok {
-			m.activeSection = SectionCharts
-			m.activePanelIdx = idx
+	if y < decksHeight {
+		if idx, ok := m.deckAt(contentWidth, decksHeight, x, y); ok {
+			m.activeSection = SectionDecks
+			m.activeDeckIdx = idx
 		}
 		return m, nil
 	}
 
-	if filterHeight > 0 && y < chartsHeight+filterHeight {
+	if filterHeight > 0 && y < decksHeight+filterHeight {
 		m.activeSection = SectionFilter
 		return m, nil
 	}
@@ -289,35 +292,6 @@ func (m *DashboardModel) fetchTickDataCmd(opts model.QueryOpts, severityLevels [
 			collectErr(err)
 		}
 
-		if rows, err := store.SeverityCountsByMinute(opts); err == nil {
-			msg.countsHistory = minuteCountsToSeverity(rows)
-			msg.hasCounts = true
-		} else {
-			collectErr(err)
-		}
-
-		if words, err := store.TopWords(20, opts); err == nil {
-			msg.words = words
-			msg.hasWords = true
-		} else {
-			collectErr(err)
-		}
-
-		if attrKeys, err := store.TopAttributeKeys(20, opts); err == nil {
-			entries := make([]AttributeEntry, len(attrKeys))
-			for i, ak := range attrKeys {
-				entries[i] = AttributeEntry{
-					Key:              ak.Key,
-					UniqueValueCount: ak.UniqueValues,
-					TotalCount:       ak.TotalCount,
-				}
-			}
-			msg.attributes = entries
-			msg.hasAttributes = true
-		} else {
-			collectErr(err)
-		}
-
 		if msg.hasTotalCount && msg.totalCount > int64(drainFrom) {
 			newCount := int(msg.totalCount) - drainFrom
 			if newCount > 5000 {
@@ -357,8 +331,13 @@ func (m *DashboardModel) applyTickData(msg tickDataLoadedMsg) {
 	if msg.lastError != "" {
 		m.lastError = msg.lastError
 		m.lastErrorAt = time.Now()
+		m.lastTickOK = false
+		m.consecutiveErrors++
 	} else {
 		m.lastError = ""
+		m.lastTickOK = true
+		m.lastTickAt = time.Now()
+		m.consecutiveErrors = 0
 	}
 
 	if msg.hasTotalCount {
@@ -370,79 +349,12 @@ func (m *DashboardModel) applyTickData(msg tickDataLoadedMsg) {
 		m.clampSidebarCursor()
 	}
 
-	if msg.hasCounts {
-		m.countsHistory = msg.countsHistory
-		m.applyCountsDataToPanels(msg.countsHistory)
-	}
-
-	if msg.hasWords {
-		m.applyWordsDataToPanels(msg.words)
-	}
-
-	if msg.hasAttributes {
-		m.applyAttributesDataToPanels(msg.attributes)
-	}
-
 	if msg.hasDrain3 {
 		m.applyDrain3Records(msg.drain3Records, msg.drain3Processed)
 	}
 
 	if msg.hasLogEntries && !m.liveUpdatesPaused() {
 		m.applyLogEntries(msg.logEntries)
-	}
-}
-
-func (m *DashboardModel) applyWordsDataToPanels(words []model.WordCount) {
-	if len(m.deckPages) == 0 {
-		for _, panel := range m.panels {
-			if p, ok := panel.(*WordsChartPanel); ok {
-				p.SetData(words)
-			}
-		}
-		return
-	}
-	for _, page := range m.deckPages {
-		for _, panel := range page.Panels {
-			if p, ok := panel.(*WordsChartPanel); ok {
-				p.SetData(words)
-			}
-		}
-	}
-}
-
-func (m *DashboardModel) applyAttributesDataToPanels(entries []AttributeEntry) {
-	if len(m.deckPages) == 0 {
-		for _, panel := range m.panels {
-			if p, ok := panel.(*AttributesChartPanel); ok {
-				p.SetData(entries)
-			}
-		}
-		return
-	}
-	for _, page := range m.deckPages {
-		for _, panel := range page.Panels {
-			if p, ok := panel.(*AttributesChartPanel); ok {
-				p.SetData(entries)
-			}
-		}
-	}
-}
-
-func (m *DashboardModel) applyCountsDataToPanels(history []SeverityCounts) {
-	if len(m.deckPages) == 0 {
-		for _, panel := range m.panels {
-			if p, ok := panel.(*CountsChartPanel); ok {
-				p.SetData(history)
-			}
-		}
-		return
-	}
-	for _, page := range m.deckPages {
-		for _, panel := range page.Panels {
-			if p, ok := panel.(*CountsChartPanel); ok {
-				p.SetData(history)
-			}
-		}
 	}
 }
 
@@ -474,8 +386,8 @@ func (m *DashboardModel) applyLogEntries(records []model.LogRecord) {
 	}
 }
 
-// initializeCharts sets up the charts based on current dimensions
-func (m *DashboardModel) initializeCharts() {
+// initializeDecks sets up the charts based on current dimensions
+func (m *DashboardModel) initializeDecks() {
 	if m.width <= 0 || m.height <= 0 {
 		return
 	}
@@ -532,4 +444,127 @@ func (m *DashboardModel) getDisplayTimestamp(entry model.LogRecord) time.Time {
 		return entry.OrigTimestamp
 	}
 	return entry.Timestamp
+}
+
+// handleDeckTick processes a per-deck tick.
+func (m *DashboardModel) handleDeckTick(msg DeckTickMsg) (tea.Model, tea.Cmd) {
+	state, ok := m.deckStates[msg.DeckTypeID]
+	if !ok {
+		return m, nil
+	}
+
+	reschedule := tea.Tick(state.Interval, func(t time.Time) tea.Msg {
+		return DeckTickMsg{DeckTypeID: msg.DeckTypeID, At: t}
+	})
+
+	// Auto-pause: skip fetch when the user is focused on this deck.
+	focusedOnThis := m.activeSection == SectionDecks &&
+		m.activeDeckIdx < len(m.decks) &&
+		func() bool {
+			if tp, ok := m.decks[m.activeDeckIdx].(TickableDeck); ok {
+				return tp.TypeID() == msg.DeckTypeID
+			}
+			return false
+		}()
+
+	if state.Paused || state.FetchInFlight || focusedOnThis {
+		return m, reschedule
+	}
+
+	// Find one TickableDeck instance with this TypeID and issue its FetchCmd.
+	var fetchCmd tea.Cmd
+	for _, vw := range m.views {
+		for _, dk := range vw.Decks {
+			if tp, ok := dk.(TickableDeck); ok && tp.TypeID() == msg.DeckTypeID {
+				state.FetchInFlight = true
+				fetchCmd = tp.FetchCmd(m.store, m.queryOpts())
+				break
+			}
+		}
+		if fetchCmd != nil {
+			break
+		}
+	}
+
+	if fetchCmd == nil {
+		return m, reschedule
+	}
+
+	return m, tea.Batch(fetchCmd, reschedule)
+}
+
+// handleDeckData processes fetched deck data and distributes to all instances.
+func (m *DashboardModel) handleDeckData(msg DeckDataMsg) (tea.Model, tea.Cmd) {
+	state, ok := m.deckStates[msg.DeckTypeID]
+	if ok {
+		state.FetchInFlight = false
+		if msg.Err != nil {
+			state.LastError = msg.Err.Error()
+			state.LastErrorAt = time.Now()
+			state.LastTickOK = false
+			state.ConsecutiveErrs++
+		} else {
+			state.LastError = ""
+			state.LastTickOK = true
+			state.LastTickAt = time.Now()
+			state.ConsecutiveErrs = 0
+		}
+	}
+
+	// Apply data to ALL instances of this TypeID across ALL pages.
+	for _, vw := range m.views {
+		for _, dk := range vw.Decks {
+			if tp, ok := dk.(TickableDeck); ok && tp.TypeID() == msg.DeckTypeID {
+				tp.ApplyData(msg.Data, msg.Err)
+			}
+		}
+	}
+
+	return m, nil
+}
+
+// handleDeckPause toggles pause for a deck type.
+func (m *DashboardModel) handleDeckPause(msg DeckPauseMsg) (tea.Model, tea.Cmd) {
+	state, ok := m.deckStates[msg.DeckTypeID]
+	if ok {
+		state.Paused = !state.Paused
+	}
+	return m, nil
+}
+
+// registerDeckTicks scans all views for TickableDeck instances and registers
+// their TypeIDs in deckStates (deduped). Returns Init cmds to start ticking.
+func (m *DashboardModel) registerDeckTicks() []tea.Cmd {
+	seen := make(map[string]bool)
+	var cmds []tea.Cmd
+
+	for _, vw := range m.views {
+		for _, dk := range vw.Decks {
+			tp, ok := dk.(TickableDeck)
+			if !ok {
+				continue
+			}
+			tid := tp.TypeID()
+			if seen[tid] {
+				continue
+			}
+			seen[tid] = true
+
+			if _, exists := m.deckStates[tid]; !exists {
+				m.deckStates[tid] = &DeckTypeState{
+					TypeID:     tid,
+					Interval:   tp.DefaultInterval(),
+					LastTickOK: true,
+					LastTickAt: time.Now(),
+				}
+			}
+
+			interval := m.deckStates[tid].Interval
+			cmds = append(cmds, tea.Tick(interval, func(t time.Time) tea.Msg {
+				return DeckTickMsg{DeckTypeID: tid, At: t}
+			}))
+		}
+	}
+
+	return cmds
 }

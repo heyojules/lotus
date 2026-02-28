@@ -99,8 +99,8 @@ type StatItem struct {
 
 // renderStatsSection renders a section of statistics with consistent formatting (using dashboard styling)
 func (m *DashboardModel) renderStatsSection(title string, items []StatItem, width int) string {
-	// Use chartTitleStyle for consistent title formatting
-	titleContent := chartTitleStyle.Render(title)
+	// Use deckTitleStyle for consistent title formatting
+	titleContent := deckTitleStyle.Render(title)
 
 	var contentLines []string
 
@@ -252,8 +252,8 @@ func (m *DashboardModel) combineSideBySide(left, right string) string {
 
 // renderSeveritySectionFrom renders severity statistics with a visual bar chart using provided counts.
 func (m *DashboardModel) renderSeveritySectionFrom(counts map[string]int64, stats []StatItem, width int) string {
-	// Use chartTitleStyle for consistent title formatting
-	titleContent := chartTitleStyle.Render("Severity Distribution")
+	// Use deckTitleStyle for consistent title formatting
+	titleContent := deckTitleStyle.Render("Severity Distribution")
 
 	var contentLines []string
 
@@ -400,8 +400,8 @@ func formatDimensionStats(rows []model.DimensionCount, total int64) []StatItem {
 
 // renderAttributeSection renders the attribute statistics section with columnar format (using dashboard styling)
 func (m *DashboardModel) renderAttributeSection(stats []AttributeStatFormatted, width int) string {
-	// Use chartTitleStyle for consistent title formatting
-	titleContent := chartTitleStyle.Render("Top Attributes")
+	// Use deckTitleStyle for consistent title formatting
+	titleContent := deckTitleStyle.Render("Top Attributes")
 
 	var contentLines []string
 

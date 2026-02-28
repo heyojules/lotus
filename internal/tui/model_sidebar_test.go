@@ -12,7 +12,7 @@ func TestNewDashboardModel_DefaultSidebarAndSection(t *testing.T) {
 	if !model.sidebarVisible {
 		t.Fatal("expected sidebar to be visible by default")
 	}
-	if model.activeSection != SectionCharts {
+	if model.activeSection != SectionDecks {
 		t.Fatalf("expected initial active section to be charts, got %v", model.activeSection)
 	}
 }

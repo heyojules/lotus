@@ -97,8 +97,8 @@ func (m *DashboardModel) renderCountsModalContent(contentWidth int, cm *CountsMo
 
 // renderHeatmapSection renders the severity heatmap chart using provided data
 func (m *DashboardModel) renderHeatmapSection(width int, minuteData []model.MinuteCounts) string {
-	// Use chartTitleStyle for consistent title formatting
-	titleContent := chartTitleStyle.Render("Severity Activity Heatmap (Last 60 Minutes)")
+	// Use deckTitleStyle for consistent title formatting
+	titleContent := deckTitleStyle.Render("Severity Activity Heatmap (Last 60 Minutes)")
 
 	var contentLines []string
 
@@ -237,8 +237,8 @@ func countForSeverity(mc *model.MinuteCounts, severity string) int64 {
 
 // renderPatternsBySeveritySection renders patterns grouped by severity using drain3 data
 func (m *DashboardModel) renderPatternsBySeveritySection(width int) string {
-	// Use chartTitleStyle for consistent title formatting
-	titleContent := chartTitleStyle.Render("Top Patterns by Severity")
+	// Use deckTitleStyle for consistent title formatting
+	titleContent := deckTitleStyle.Render("Top Patterns by Severity")
 
 	var contentLines []string
 
@@ -282,8 +282,8 @@ func (m *DashboardModel) renderPatternsBySeveritySection(width int) string {
 
 // renderServicesBySeveritySection renders services grouped by severity using provided data
 func (m *DashboardModel) renderServicesBySeveritySection(width int, servicesData map[string][]model.DimensionCount) string {
-	// Use chartTitleStyle for consistent title formatting
-	titleContent := chartTitleStyle.Render("Top Services by Severity")
+	// Use deckTitleStyle for consistent title formatting
+	titleContent := deckTitleStyle.Render("Top Services by Severity")
 
 	var contentLines []string
 

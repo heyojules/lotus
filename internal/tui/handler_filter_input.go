@@ -18,9 +18,9 @@ func (h filterInputHandler) HandleKey(m *DashboardModel, msg tea.KeyMsg) (bool, 
 		m.filterInput.SetValue("")
 		m.filterRegex = nil
 		if m.activeSection == SectionFilter {
-			m.activeSection = SectionCharts
-			if m.activePanelIdx >= len(m.panels) {
-				m.activePanelIdx = max(0, len(m.panels)-1)
+			m.activeSection = SectionDecks
+			if m.activeDeckIdx >= len(m.decks) {
+				m.activeDeckIdx = max(0, len(m.decks)-1)
 			}
 		}
 		return true, nil

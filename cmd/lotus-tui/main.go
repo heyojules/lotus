@@ -67,8 +67,8 @@ func runTUI(cfg cliConfig) error {
 	defer client.Close()
 
 	dashboard := tui.NewDashboardModel(cfg.LogBuffer, cfg.UpdateInterval, cfg.ReverseScrollWheel, cfg.UseLogTime, client, "Socket")
-	dashPage := tui.NewDashboardPage(dashboard)
-	app := tui.NewApp(dashPage)
+	dashView := tui.NewDashboardView(dashboard)
+	app := tui.NewApp(dashView)
 
 	p := tea.NewProgram(app, tea.WithAltScreen(), tea.WithMouseCellMotion())
 	if _, err := p.Run(); err != nil {

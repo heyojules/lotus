@@ -55,9 +55,9 @@ func (m *DashboardModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.filterRegex = nil
 			m.searchTerm = ""
 			if m.activeSection == SectionFilter {
-				m.activeSection = SectionCharts
-				if m.activePanelIdx >= len(m.panels) {
-					m.activePanelIdx = max(0, len(m.panels)-1)
+				m.activeSection = SectionDecks
+				if m.activeDeckIdx >= len(m.decks) {
+					m.activeDeckIdx = max(0, len(m.decks)-1)
 				}
 			}
 			return m, nil
@@ -112,11 +112,11 @@ func (m *DashboardModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "]":
-		m.nextPage()
+		m.nextView()
 		return m, nil
 
 	case "[":
-		m.prevPage()
+		m.prevView()
 		return m, nil
 
 	case "c":
@@ -149,6 +149,18 @@ func (m *DashboardModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "ctrl+f":
 		m.PushModal(NewSeverityFilterModal(m))
+		return m, nil
+
+	case "p":
+		// Per-deck pause: toggle pause on focused deck's TypeID
+		if m.activeSection == SectionDecks && m.activeDeckIdx < len(m.decks) {
+			if tp, ok := m.decks[m.activeDeckIdx].(TickableDeck); ok {
+				tid := tp.TypeID()
+				if state, exists := m.deckStates[tid]; exists {
+					state.Paused = !state.Paused
+				}
+			}
+		}
 		return m, nil
 
 	case " ":
@@ -276,36 +288,36 @@ func (m *DashboardModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 // nextSection moves to the next section
 func (m *DashboardModel) nextSection() {
 	if m.activeSection == SectionSidebar {
-		if len(m.panels) == 0 {
+		if len(m.decks) == 0 {
 			m.activeSection = SectionLogs
 		} else {
-			m.activeSection = SectionCharts
-			if m.activePanelIdx >= len(m.panels) {
-				m.activePanelIdx = max(0, len(m.panels)-1)
+			m.activeSection = SectionDecks
+			if m.activeDeckIdx >= len(m.decks) {
+				m.activeDeckIdx = max(0, len(m.decks)-1)
 			}
 		}
 		return
 	}
 
 	if m.activeSection == SectionFilter {
-		if len(m.panels) == 0 {
+		if len(m.decks) == 0 {
 			m.activeSection = SectionLogs
 		} else {
-			m.activeSection = SectionCharts
-			if m.activePanelIdx >= len(m.panels) {
-				m.activePanelIdx = max(0, len(m.panels)-1)
+			m.activeSection = SectionDecks
+			if m.activeDeckIdx >= len(m.decks) {
+				m.activeDeckIdx = max(0, len(m.decks)-1)
 			}
 		}
 		return
 	}
 
-	if m.activeSection == SectionCharts {
-		if len(m.panels) == 0 {
+	if m.activeSection == SectionDecks {
+		if len(m.decks) == 0 {
 			m.activeSection = SectionLogs
 			return
 		}
-		if m.activePanelIdx < len(m.panels)-1 {
-			m.activePanelIdx++
+		if m.activeDeckIdx < len(m.decks)-1 {
+			m.activeDeckIdx++
 		} else {
 			m.activeSection = SectionLogs
 		}
@@ -316,12 +328,12 @@ func (m *DashboardModel) nextSection() {
 	if m.sidebarVisible {
 		m.activeSection = SectionSidebar
 	} else {
-		if len(m.panels) == 0 {
+		if len(m.decks) == 0 {
 			m.activeSection = SectionLogs
 		} else {
-			m.activeSection = SectionCharts
-			if m.activePanelIdx >= len(m.panels) {
-				m.activePanelIdx = max(0, len(m.panels)-1)
+			m.activeSection = SectionDecks
+			if m.activeDeckIdx >= len(m.decks) {
+				m.activeDeckIdx = max(0, len(m.decks)-1)
 			}
 		}
 	}
@@ -339,13 +351,13 @@ func (m *DashboardModel) prevSection() {
 		return
 	}
 
-	if m.activeSection == SectionCharts {
-		if len(m.panels) == 0 {
+	if m.activeSection == SectionDecks {
+		if len(m.decks) == 0 {
 			m.activeSection = SectionLogs
 			return
 		}
-		if m.activePanelIdx > 0 {
-			m.activePanelIdx--
+		if m.activeDeckIdx > 0 {
+			m.activeDeckIdx--
 		} else if m.sidebarVisible {
 			m.activeSection = SectionSidebar
 		} else {
@@ -354,13 +366,13 @@ func (m *DashboardModel) prevSection() {
 		return
 	}
 
-	// SectionLogs → last chart panel
-	if len(m.panels) == 0 {
+	// SectionLogs → last deck
+	if len(m.decks) == 0 {
 		m.activeSection = SectionLogs
 		return
 	}
-	m.activeSection = SectionCharts
-	m.activePanelIdx = len(m.panels) - 1
+	m.activeSection = SectionDecks
+	m.activeDeckIdx = len(m.decks) - 1
 }
 
 // moveSelection moves the selection within the active section
@@ -385,23 +397,23 @@ func (m *DashboardModel) moveSelection(delta int) {
 		return
 	}
 
-	if m.activeSection != SectionCharts || m.activePanelIdx >= len(m.panels) {
+	if m.activeSection != SectionDecks || m.activeDeckIdx >= len(m.decks) {
 		return
 	}
 
-	maxItems := m.panels[m.activePanelIdx].ItemCount()
+	maxItems := m.decks[m.activeDeckIdx].ItemCount()
 	if maxItems == 0 {
 		return
 	}
 
-	current := m.panelSelIdx[m.activePanelIdx]
+	current := m.deckSelIdx[m.activeDeckIdx]
 	newIndex := current + delta
 	if newIndex < 0 {
 		newIndex = 0
 	} else if newIndex >= maxItems {
 		newIndex = maxItems - 1
 	}
-	m.panelSelIdx[m.activePanelIdx] = newIndex
+	m.deckSelIdx[m.activeDeckIdx] = newIndex
 }
 
 // updateSeverityFilterActiveStatus updates whether severity filtering is active
@@ -425,8 +437,8 @@ func (m *DashboardModel) showDetails() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	if m.activeSection == SectionCharts && m.activePanelIdx < len(m.panels) {
-		cmd := m.panels[m.activePanelIdx].OnSelect(m.viewContext(), m.panelSelIdx[m.activePanelIdx])
+	if m.activeSection == SectionDecks && m.activeDeckIdx < len(m.decks) {
+		cmd := m.decks[m.activeDeckIdx].OnSelect(m.viewContext(), m.deckSelIdx[m.activeDeckIdx])
 		return m, cmd
 	}
 

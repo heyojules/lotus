@@ -102,7 +102,7 @@ func (s *Store) TopWords(limit int, opts QueryOpts) ([]WordCount, error) {
 		FROM words
 		WHERE word != '' AND length(word) >= 3 AND length(word) <= 50
 		GROUP BY word
-		ORDER BY count DESC
+		ORDER BY count DESC, word ASC
 		LIMIT ?`, where)
 
 	args := append(wArgs, limit)
@@ -144,7 +144,7 @@ func (s *Store) TopAttributes(limit int, opts QueryOpts) ([]AttributeStat, error
 		FROM attrs
 		WHERE attr_key IS NOT NULL AND attr_value IS NOT NULL
 		GROUP BY attr_key, attr_value
-		ORDER BY count DESC
+		ORDER BY count DESC, attr_key ASC, attr_value ASC
 		LIMIT ?`, where)
 
 	args := append(wArgs, limit)
@@ -226,7 +226,7 @@ func (s *Store) AttributeKeyValues(key string, limit int) (map[string]int64, err
 		FROM attrs
 		WHERE attr_key = ?
 		GROUP BY attr_value
-		ORDER BY count DESC
+		ORDER BY count DESC, attr_value ASC
 		LIMIT ?`, key, limit)
 	if err != nil {
 		return nil, err

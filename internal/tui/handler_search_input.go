@@ -14,9 +14,9 @@ func (h searchInputHandler) HandleKey(m *DashboardModel, msg tea.KeyMsg) (bool, 
 		m.searchInput.SetValue("")
 		m.searchTerm = ""
 		if m.activeSection == SectionFilter {
-			m.activeSection = SectionCharts
-			if m.activePanelIdx >= len(m.panels) {
-				m.activePanelIdx = max(0, len(m.panels)-1)
+			m.activeSection = SectionDecks
+			if m.activeDeckIdx >= len(m.decks) {
+				m.activeDeckIdx = max(0, len(m.decks)-1)
 			}
 		}
 		return true, nil

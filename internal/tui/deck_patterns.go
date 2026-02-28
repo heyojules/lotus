@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/tinytelemetry/lotus/internal/model"
 
@@ -10,39 +11,47 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// PatternsChartPanel displays drain3 log patterns.
-type PatternsChartPanel struct {
+// PatternsDeck displays drain3 log patterns.
+type PatternsDeck struct {
 	drain3Manager *Drain3Manager
 	pushModalCmd  tea.Cmd
 }
 
-// NewPatternsChartPanel creates a new patterns chart panel.
-func NewPatternsChartPanel(m *DashboardModel) *PatternsChartPanel {
-	return &PatternsChartPanel{
-		drain3Manager: m.drain3Manager,
-		pushModalCmd: func() tea.Msg {
-			modal := NewPatternsModal(m)
-			return ActionMsg{Action: ActionPushModal, Payload: modal}
-		},
+// NewPatternsDeck creates a new patterns deck.
+func NewPatternsDeck(drain3 *Drain3Manager, pushModalCmd tea.Cmd) *PatternsDeck {
+	return &PatternsDeck{
+		drain3Manager: drain3,
+		pushModalCmd:  pushModalCmd,
 	}
 }
 
-func (p *PatternsChartPanel) ID() string    { return "patterns" }
-func (p *PatternsChartPanel) Title() string { return "Patterns" }
+func (p *PatternsDeck) ID() string    { return "patterns" }
+func (p *PatternsDeck) Title() string { return "Patterns" }
 
-func (p *PatternsChartPanel) Refresh(_ model.LogQuerier, _ model.QueryOpts) {
-	// no-op: drain3Manager patterns are updated as logs arrive
+func (p *PatternsDeck) Refresh(_ model.LogQuerier, _ model.QueryOpts) {}
+
+func (p *PatternsDeck) TypeID() string               { return "patterns" }
+func (p *PatternsDeck) DefaultInterval() time.Duration { return 2 * time.Second }
+
+// FetchCmd returns a refresh signal (no DB query — patterns come from drain3).
+func (p *PatternsDeck) FetchCmd(_ model.LogQuerier, _ model.QueryOpts) tea.Cmd {
+	return func() tea.Msg {
+		return DeckDataMsg{DeckTypeID: "patterns", Data: nil, Err: nil}
+	}
 }
 
-func (p *PatternsChartPanel) ContentLines(_ ViewContext) int {
+// ApplyData is a no-op — patterns are updated as logs arrive via drain3.
+func (p *PatternsDeck) ApplyData(_ interface{}, _ error) {}
+
+func (p *PatternsDeck) ContentLines(_ ViewContext) int {
 	return 8
 }
 
-func (p *PatternsChartPanel) ItemCount() int {
+func (p *PatternsDeck) ItemCount() int {
 	return 7
 }
 
-func (p *PatternsChartPanel) Render(_ ViewContext, width, height int, active bool, _ int) string {
+func (p *PatternsDeck) Render(ctx ViewContext, width, height int, active bool, _ int) string {
 	style := sectionStyle.Width(width).Height(height)
 	if active {
 		style = activeSectionStyle.Width(width).Height(height)
@@ -57,7 +66,8 @@ func (p *PatternsChartPanel) Render(_ ViewContext, width, height int, active boo
 	if patternCount > 0 {
 		titleText = fmt.Sprintf("Log Patterns (%d patterns from %d logs)", patternCount, totalLogs)
 	}
-	title := chartTitleStyle.Render(titleText)
+	titleText = deckTitleWithBadges(titleText, ctx)
+	title := deckTitleStyle.Render(titleText)
 
 	var content string
 	if p.drain3Manager != nil && patternCount > 0 {
@@ -69,14 +79,14 @@ func (p *PatternsChartPanel) Render(_ ViewContext, width, height int, active boo
 	return style.Render(lipgloss.JoinVertical(lipgloss.Left, title, content))
 }
 
-func (p *PatternsChartPanel) OnSelect(_ ViewContext, _ int) tea.Cmd {
+func (p *PatternsDeck) OnSelect(_ ViewContext, _ int) tea.Cmd {
 	if p.drain3Manager != nil && p.pushModalCmd != nil {
 		return p.pushModalCmd
 	}
 	return nil
 }
 
-func (p *PatternsChartPanel) renderContent(chartWidth int) string {
+func (p *PatternsDeck) renderContent(deckWidth int) string {
 	if p.drain3Manager == nil {
 		return helpStyle.Render("Pattern extraction not available")
 	}
@@ -90,7 +100,7 @@ func (p *PatternsChartPanel) renderContent(chartWidth int) string {
 		}
 	}
 
-	templateWidth := chartWidth - 26
+	templateWidth := deckWidth - 26
 	if templateWidth < 20 {
 		templateWidth = 20
 	}

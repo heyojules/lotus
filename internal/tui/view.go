@@ -18,7 +18,7 @@ func (m *DashboardModel) contentWidth() int {
 
 // layoutHeights computes the three main vertical layout sections so that both
 // renderDashboard and visibleLogLines share a single source of truth.
-func (m *DashboardModel) layoutHeights() (chartsHeight, filterHeight, logsHeight int) {
+func (m *DashboardModel) layoutHeights() (decksHeight, filterHeight, logsHeight int) {
 	statusLineHeight := 1
 	usableHeight := m.height - statusLineHeight - 2
 
@@ -27,17 +27,17 @@ func (m *DashboardModel) layoutHeights() (chartsHeight, filterHeight, logsHeight
 		filterHeight = 1
 	}
 
-	chartsHeight = m.calculateRequiredChartsHeight()
+	decksHeight = m.calculateRequiredDecksHeight()
 	minLogsHeight := 3
 	maxChartsHeight := usableHeight - filterHeight - minLogsHeight
 	if maxChartsHeight < 3 {
 		maxChartsHeight = 3
 	}
-	if chartsHeight > maxChartsHeight {
-		chartsHeight = maxChartsHeight
+	if decksHeight > maxChartsHeight {
+		decksHeight = maxChartsHeight
 	}
 
-	logsHeight = usableHeight - chartsHeight - filterHeight
+	logsHeight = usableHeight - decksHeight - filterHeight
 	if logsHeight < minLogsHeight {
 		logsHeight = minLogsHeight
 	}
@@ -77,10 +77,10 @@ func (m *DashboardModel) renderDashboard() string {
 	contentWidth := m.contentWidth()
 	showSidebar := m.sidebarVisible
 
-	chartsHeight, _, logsHeight := m.layoutHeights()
+	decksHeight, _, logsHeight := m.layoutHeights()
 
-	// Top section: dynamic chart grid.
-	topSection := m.renderChartsGrid(contentWidth, chartsHeight)
+	// Top section: dynamic deck grid.
+	topSection := m.renderDecksGrid(contentWidth, decksHeight)
 
 	// Middle section: Filter (only when active)
 	var sections []string

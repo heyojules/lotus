@@ -2,55 +2,55 @@ package tui
 
 import tea "github.com/charmbracelet/bubbletea"
 
-// App is the top-level Bubble Tea model that routes between pages.
+// App is the top-level Bubble Tea model that routes between views.
 type App struct {
-	pages      map[string]Page
-	activePage string
+	views      map[string]View
+	activeView string
 	width      int
 	height     int
 }
 
-// NewApp creates a new App with the given pages. The first page is the default.
-func NewApp(pages ...Page) *App {
-	pageMap := make(map[string]Page, len(pages))
+// NewApp creates a new App with the given views. The first view is the default.
+func NewApp(views ...View) *App {
+	viewMap := make(map[string]View, len(views))
 	var firstID string
-	for i, p := range pages {
-		pageMap[p.ID()] = p
+	for i, v := range views {
+		viewMap[v.ID()] = v
 		if i == 0 {
-			firstID = p.ID()
+			firstID = v.ID()
 		}
 	}
 	return &App{
-		pages:      pageMap,
-		activePage: firstID,
+		views:      viewMap,
+		activeView: firstID,
 	}
 }
 
 func (a *App) Init() tea.Cmd {
-	if p, ok := a.pages[a.activePage]; ok {
-		return p.Init()
+	if v, ok := a.views[a.activeView]; ok {
+		return v.Init()
 	}
 	return nil
 }
 
 func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// Pass WindowSizeMsg to all pages so they can track dimensions.
+	// Pass WindowSizeMsg to all views so they can track dimensions.
 	if wsm, ok := msg.(tea.WindowSizeMsg); ok {
 		a.width = wsm.Width
 		a.height = wsm.Height
 	}
 
-	p, ok := a.pages[a.activePage]
+	v, ok := a.views[a.activeView]
 	if !ok {
 		return a, nil
 	}
 
-	cmd, nav := p.Update(msg)
+	cmd, nav := v.Update(msg)
 
 	if nav != nil {
-		if _, exists := a.pages[nav.PageID]; exists {
-			a.activePage = nav.PageID
-			initCmd := a.pages[a.activePage].Init()
+		if _, exists := a.views[nav.ViewID]; exists {
+			a.activeView = nav.ViewID
+			initCmd := a.views[a.activeView].Init()
 			return a, tea.Batch(cmd, initCmd)
 		}
 	}
@@ -59,8 +59,8 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (a *App) View() string {
-	if p, ok := a.pages[a.activePage]; ok {
-		return p.View(a.width, a.height)
+	if v, ok := a.views[a.activeView]; ok {
+		return v.View(a.width, a.height)
 	}
-	return "No active page"
+	return "No active view"
 }

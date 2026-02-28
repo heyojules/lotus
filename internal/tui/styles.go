@@ -39,7 +39,7 @@ var (
 			Italic(true).
 			Padding(1)
 
-	chartTitleStyle = lipgloss.NewStyle().
+	deckTitleStyle = lipgloss.NewStyle().
 			Foreground(ColorBlue).
 			Bold(true).
 			Align(lipgloss.Center)

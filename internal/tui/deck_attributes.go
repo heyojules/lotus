@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/tinytelemetry/lotus/internal/model"
 
@@ -10,38 +11,59 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// AttributesChartPanel displays the most frequent attribute keys.
-type AttributesChartPanel struct {
+// AttributesDeck displays the most frequent attribute keys.
+type AttributesDeck struct {
 	store          model.LogQuerier
 	formatModal    func(entry *AttributeEntry, maxWidth int) string
 	pushContentCmd func(content string) tea.Cmd
 	data           []AttributeEntry
 }
 
-// NewAttributesChartPanel creates a new attributes chart panel.
-func NewAttributesChartPanel(m *DashboardModel) *AttributesChartPanel {
-	return &AttributesChartPanel{
-		store:       m.store,
-		formatModal: m.formatAttributeValuesModal,
-		pushContentCmd: func(content string) tea.Cmd {
-			modal := NewDetailModalWithContent(m, content)
-			return actionMsg(ActionMsg{Action: ActionPushModal, Payload: modal})
-		},
+// NewAttributesDeck creates a new attributes deck.
+func NewAttributesDeck(store model.LogQuerier, formatModal func(entry *AttributeEntry, maxWidth int) string, pushContentCmd func(content string) tea.Cmd) *AttributesDeck {
+	return &AttributesDeck{
+		store:          store,
+		formatModal:    formatModal,
+		pushContentCmd: pushContentCmd,
 	}
 }
 
-func (p *AttributesChartPanel) ID() string    { return "attributes" }
-func (p *AttributesChartPanel) Title() string { return "Attrs" }
+func (p *AttributesDeck) ID() string    { return "attributes" }
+func (p *AttributesDeck) Title() string { return "Attrs" }
 
-func (p *AttributesChartPanel) Refresh(_ model.LogQuerier, _ model.QueryOpts) {
-	// no-op: data is pushed from async tick results
+func (p *AttributesDeck) Refresh(_ model.LogQuerier, _ model.QueryOpts) {}
+
+func (p *AttributesDeck) TypeID() string               { return "attributes" }
+func (p *AttributesDeck) DefaultInterval() time.Duration { return 2 * time.Second }
+
+func (p *AttributesDeck) FetchCmd(store model.LogQuerier, opts model.QueryOpts) tea.Cmd {
+	return func() tea.Msg {
+		attrKeys, err := store.TopAttributeKeys(20, opts)
+		var entries []AttributeEntry
+		if err == nil {
+			entries = make([]AttributeEntry, len(attrKeys))
+			for i, ak := range attrKeys {
+				entries[i] = AttributeEntry{
+					Key:              ak.Key,
+					UniqueValueCount: ak.UniqueValues,
+					TotalCount:       ak.TotalCount,
+				}
+			}
+		}
+		return DeckDataMsg{DeckTypeID: "attributes", Data: entries, Err: err}
+	}
 }
 
-func (p *AttributesChartPanel) SetData(entries []AttributeEntry) {
-	p.data = append([]AttributeEntry(nil), entries...)
+func (p *AttributesDeck) ApplyData(data interface{}, err error) {
+	if err != nil {
+		return
+	}
+	if entries, ok := data.([]AttributeEntry); ok {
+		p.data = append([]AttributeEntry(nil), entries...)
+	}
 }
 
-func (p *AttributesChartPanel) ContentLines(ctx ViewContext) int {
+func (p *AttributesDeck) ContentLines(ctx ViewContext) int {
 	minLines := 8
 	if ctx.ContentWidth < 80 {
 		minLines = 5
@@ -56,17 +78,17 @@ func (p *AttributesChartPanel) ContentLines(ctx ViewContext) int {
 	return max(maxItems, minLines)
 }
 
-func (p *AttributesChartPanel) ItemCount() int {
+func (p *AttributesDeck) ItemCount() int {
 	return min(len(p.data), 10)
 }
 
-func (p *AttributesChartPanel) Render(ctx ViewContext, width, height int, active bool, selIdx int) string {
+func (p *AttributesDeck) Render(ctx ViewContext, width, height int, active bool, selIdx int) string {
 	style := sectionStyle.Width(width).Height(height)
 	if active {
 		style = activeSectionStyle.Width(width).Height(height)
 	}
 
-	title := chartTitleStyle.Render("Top Attributes")
+	title := deckTitleStyle.Render(deckTitleWithBadges("Top Attributes", ctx))
 
 	var content string
 	if len(p.data) > 0 {
@@ -78,7 +100,7 @@ func (p *AttributesChartPanel) Render(ctx ViewContext, width, height int, active
 	return style.Render(lipgloss.JoinVertical(lipgloss.Left, title, content))
 }
 
-func (p *AttributesChartPanel) OnSelect(ctx ViewContext, selIdx int) tea.Cmd {
+func (p *AttributesDeck) OnSelect(ctx ViewContext, selIdx int) tea.Cmd {
 	if selIdx < len(p.data) {
 		if p.formatModal == nil || p.pushContentCmd == nil {
 			return nil
@@ -100,7 +122,7 @@ func (p *AttributesChartPanel) OnSelect(ctx ViewContext, selIdx int) tea.Cmd {
 	return nil
 }
 
-func (p *AttributesChartPanel) renderContent(ctx ViewContext, chartWidth int, selectedIdx int, active bool) string {
+func (p *AttributesDeck) renderContent(ctx ViewContext, deckWidth int, selectedIdx int, active bool) string {
 	maxItems := 10
 	if ctx.ContentWidth < 80 {
 		maxItems = 5
@@ -123,7 +145,7 @@ func (p *AttributesChartPanel) renderContent(ctx ViewContext, chartWidth int, se
 		countFieldWidth = 3
 	}
 
-	availableWidth := chartWidth - 2
+	availableWidth := deckWidth - 2
 	fixedOverhead := 4 + (countFieldWidth + 2) + 2
 	barWidth := 15
 	if availableWidth < 40 {

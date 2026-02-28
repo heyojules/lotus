@@ -23,9 +23,9 @@ type SkinColors struct {
 	TextInverse   string `yaml:"text_inverse"`   // Text on colored backgrounds
 
 	// Chart and Data Colors
-	ChartTitle  string `yaml:"chart_title"`  // Chart titles
-	ChartBar    string `yaml:"chart_bar"`    // Bar chart bars
-	ChartAccent string `yaml:"chart_accent"` // Chart accent elements
+	DeckTitle  string `yaml:"deck_title"`  // Chart titles
+	DeckBar    string `yaml:"deck_bar"`    // Bar chart bars
+	DeckAccent string `yaml:"deck_accent"` // Chart accent elements
 
 	// Log Entry Colors
 	LogTimestamp  string `yaml:"log_timestamp"`  // Log timestamps
@@ -83,9 +83,9 @@ func DefaultSkin() *Skin {
 			TextInverse:   "#000000", // Black
 
 			// Chart and Data Colors
-			ChartTitle:  "#0f93fc", // Blue
-			ChartBar:    "#49E209", // Green
-			ChartAccent: "#FF8C42", // Orange
+			DeckTitle:  "#0f93fc", // Blue
+			DeckBar:    "#49E209", // Green
+			DeckAccent: "#FF8C42", // Orange
 
 			// Log Entry Colors
 			LogTimestamp:  "#BCBEC0", // Gray
@@ -164,14 +164,14 @@ func applyDefaults(colors *SkinColors, defaults *SkinColors) {
 		colors.TextInverse = defaults.TextInverse
 	}
 
-	if colors.ChartTitle == "" {
-		colors.ChartTitle = defaults.ChartTitle
+	if colors.DeckTitle == "" {
+		colors.DeckTitle = defaults.DeckTitle
 	}
-	if colors.ChartBar == "" {
-		colors.ChartBar = defaults.ChartBar
+	if colors.DeckBar == "" {
+		colors.DeckBar = defaults.DeckBar
 	}
-	if colors.ChartAccent == "" {
-		colors.ChartAccent = defaults.ChartAccent
+	if colors.DeckAccent == "" {
+		colors.DeckAccent = defaults.DeckAccent
 	}
 
 	if colors.LogTimestamp == "" {
@@ -290,7 +290,7 @@ func updateColorVariables() {
 	ColorWhite = lipgloss.Color(CurrentSkin.Colors.Text)
 	ColorRed = lipgloss.Color(CurrentSkin.Colors.Error)
 	ColorYellow = lipgloss.Color(CurrentSkin.Colors.Warning)
-	ColorOrange = lipgloss.Color(CurrentSkin.Colors.ChartAccent)
+	ColorOrange = lipgloss.Color(CurrentSkin.Colors.DeckAccent)
 	ColorPink = lipgloss.Color(CurrentSkin.Colors.Highlight)
 }
 
@@ -313,8 +313,8 @@ func updateStyles() {
 		Italic(true).
 		Padding(1)
 
-	chartTitleStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color(CurrentSkin.Colors.ChartTitle)).
+	deckTitleStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color(CurrentSkin.Colors.DeckTitle)).
 		Bold(true).
 		Align(lipgloss.Center)
 }

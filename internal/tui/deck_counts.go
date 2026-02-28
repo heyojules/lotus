@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/tinytelemetry/lotus/internal/model"
 
@@ -11,56 +12,71 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// CountsChartPanel displays log counts over time as a stacked bar chart.
-type CountsChartPanel struct {
+// CountsDeck displays log counts over time as a stacked bar chart.
+type CountsDeck struct {
 	pushModalCmd tea.Cmd
 	data         []SeverityCounts
 }
 
-// NewCountsChartPanel creates a new counts chart panel.
-func NewCountsChartPanel(m *DashboardModel) *CountsChartPanel {
-	return &CountsChartPanel{
-		pushModalCmd: func() tea.Msg {
-			modal := NewCountsModal(m)
-			return ActionMsg{Action: ActionPushModal, Payload: modal}
-		},
-		data: make([]SeverityCounts, 0),
+// NewCountsDeck creates a new counts deck.
+func NewCountsDeck(pushModalCmd tea.Cmd) *CountsDeck {
+	return &CountsDeck{
+		pushModalCmd: pushModalCmd,
+		data:         make([]SeverityCounts, 0),
 	}
 }
 
-func (p *CountsChartPanel) ID() string    { return "counts" }
-func (p *CountsChartPanel) Title() string { return "Counts" }
+func (p *CountsDeck) ID() string    { return "counts" }
+func (p *CountsDeck) Title() string { return "Counts" }
 
-func (p *CountsChartPanel) Refresh(_ model.LogQuerier, _ model.QueryOpts) {
-	// no-op: data is pushed from async tick results
+func (p *CountsDeck) Refresh(_ model.LogQuerier, _ model.QueryOpts) {}
+
+func (p *CountsDeck) TypeID() string               { return "counts" }
+func (p *CountsDeck) DefaultInterval() time.Duration { return 2 * time.Second }
+
+func (p *CountsDeck) FetchCmd(store model.LogQuerier, opts model.QueryOpts) tea.Cmd {
+	return func() tea.Msg {
+		rows, err := store.SeverityCountsByMinute(opts)
+		var history []SeverityCounts
+		if err == nil {
+			history = minuteCountsToSeverity(rows)
+		}
+		return DeckDataMsg{DeckTypeID: "counts", Data: history, Err: err}
+	}
 }
 
-func (p *CountsChartPanel) SetData(history []SeverityCounts) {
-	p.data = append([]SeverityCounts(nil), history...)
+func (p *CountsDeck) ApplyData(data interface{}, err error) {
+	if err != nil {
+		return
+	}
+	if history, ok := data.([]SeverityCounts); ok {
+		p.data = append([]SeverityCounts(nil), history...)
+	}
 }
 
-func (p *CountsChartPanel) ContentLines(ctx ViewContext) int {
+func (p *CountsDeck) ContentLines(ctx ViewContext) int {
 	if len(p.data) == 0 {
 		return 1
 	}
-	chartHeight := 8
+	deckHeight := 8
 	if ctx.ContentWidth < 80 {
-		chartHeight = 6
+		deckHeight = 6
 	}
-	return chartHeight
+	return deckHeight
 }
 
-func (p *CountsChartPanel) ItemCount() int {
+func (p *CountsDeck) ItemCount() int {
 	return len(p.data)
 }
 
-func (p *CountsChartPanel) Render(ctx ViewContext, width, height int, active bool, _ int) string {
+func (p *CountsDeck) Render(ctx ViewContext, width, height int, active bool, _ int) string {
 	style := sectionStyle.Width(width).Height(height)
 	if active {
 		style = activeSectionStyle.Width(width).Height(height)
 	}
 
 	var headerText string
+	leftTitle := deckTitleWithBadges("Log Counts", ctx)
 	if len(p.data) > 0 {
 		latest := p.data[len(p.data)-1]
 		minTotal, maxTotal := latest.Total, latest.Total
@@ -72,7 +88,6 @@ func (p *CountsChartPanel) Render(ctx ViewContext, width, height int, active boo
 				maxTotal = counts.Total
 			}
 		}
-		leftTitle := "Log Counts"
 		rightStats := fmt.Sprintf("Min: %d | Max: %d", minTotal, maxTotal)
 		availableWidth := width - 4
 		spacerWidth := availableWidth - len(leftTitle) - len(rightStats)
@@ -82,10 +97,10 @@ func (p *CountsChartPanel) Render(ctx ViewContext, width, height int, active boo
 			headerText = leftTitle
 		}
 	} else {
-		headerText = "Log Counts"
+		headerText = leftTitle
 	}
 
-	title := chartTitleStyle.Render(headerText)
+	title := deckTitleStyle.Render(headerText)
 
 	var content string
 	if len(p.data) > 0 {
@@ -97,14 +112,14 @@ func (p *CountsChartPanel) Render(ctx ViewContext, width, height int, active boo
 	return style.Render(lipgloss.JoinVertical(lipgloss.Left, title, content))
 }
 
-func (p *CountsChartPanel) OnSelect(_ ViewContext, _ int) tea.Cmd {
+func (p *CountsDeck) OnSelect(_ ViewContext, _ int) tea.Cmd {
 	if p.pushModalCmd == nil {
 		return nil
 	}
 	return p.pushModalCmd
 }
 
-func (p *CountsChartPanel) renderContent(ctx ViewContext, chartWidth int) string {
+func (p *CountsDeck) renderContent(ctx ViewContext, deckWidth int) string {
 	if len(p.data) == 0 {
 		return helpStyle.Render("No data available")
 	}
@@ -115,13 +130,13 @@ func (p *CountsChartPanel) renderContent(ctx ViewContext, chartWidth int) string
 	}
 
 	legendWidth := 18
-	chartHeight := 8
-	actualChartWidth := chartWidth - legendWidth - 2
+	deckHeight := 8
+	actualChartWidth := deckWidth - legendWidth - 2
 	if actualChartWidth < 20 {
 		actualChartWidth = 20
 	}
 	if ctx.ContentWidth < 80 {
-		chartHeight = 6
+		deckHeight = 6
 	}
 
 	dataPoints := len(p.data)
@@ -138,7 +153,7 @@ func (p *CountsChartPanel) renderContent(ctx ViewContext, chartWidth int) string
 		dataStartIdx = dataPoints - maxBars
 	}
 
-	bc := barchart.New(actualChartWidth, chartHeight,
+	bc := barchart.New(actualChartWidth, deckHeight,
 		barchart.WithBarGap(1),
 		barchart.WithBarWidth(1),
 		barchart.WithNoAxis(),
@@ -239,25 +254,25 @@ func (p *CountsChartPanel) renderContent(ctx ViewContext, chartWidth int) string
 			}
 		}
 
-		for len(legendLines) < chartHeight {
+		for len(legendLines) < deckHeight {
 			legendLines = append(legendLines, strings.Repeat(" ", legendWidth-2))
 		}
 
 		legend = strings.Join(legendLines, "\n")
 	} else {
-		legend = strings.Repeat("\n", chartHeight-1)
+		legend = strings.Repeat("\n", deckHeight-1)
 	}
 
 	separator := strings.Repeat(" ", 2)
 	chartLines := strings.Split(chartOutput, "\n")
-	for len(chartLines) < chartHeight {
+	for len(chartLines) < deckHeight {
 		chartLines = append(chartLines, "")
 	}
 
 	var combinedLines []string
 	legendSplit := strings.Split(legend, "\n")
 
-	for i := 0; i < chartHeight; i++ {
+	for i := 0; i < deckHeight; i++ {
 		chartLine := ""
 		legendLine := ""
 		if i < len(chartLines) {

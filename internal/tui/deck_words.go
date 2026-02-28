@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/tinytelemetry/lotus/internal/model"
 
@@ -10,28 +11,41 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// WordsChartPanel displays the most frequent words.
-type WordsChartPanel struct {
+// WordsDeck displays the most frequent words.
+type WordsDeck struct {
 	data []model.WordCount
 }
 
-// NewWordsChartPanel creates a new words chart panel.
-func NewWordsChartPanel() *WordsChartPanel {
-	return &WordsChartPanel{}
+// NewWordsDeck creates a new words deck.
+func NewWordsDeck() *WordsDeck {
+	return &WordsDeck{}
 }
 
-func (p *WordsChartPanel) ID() string    { return "words" }
-func (p *WordsChartPanel) Title() string { return "Words" }
+func (p *WordsDeck) ID() string    { return "words" }
+func (p *WordsDeck) Title() string { return "Words" }
 
-func (p *WordsChartPanel) Refresh(_ model.LogQuerier, _ model.QueryOpts) {
-	// no-op: data is pushed from async tick results
+func (p *WordsDeck) Refresh(_ model.LogQuerier, _ model.QueryOpts) {}
+
+func (p *WordsDeck) TypeID() string               { return "words" }
+func (p *WordsDeck) DefaultInterval() time.Duration { return 2 * time.Second }
+
+func (p *WordsDeck) FetchCmd(store model.LogQuerier, opts model.QueryOpts) tea.Cmd {
+	return func() tea.Msg {
+		words, err := store.TopWords(20, opts)
+		return DeckDataMsg{DeckTypeID: "words", Data: words, Err: err}
+	}
 }
 
-func (p *WordsChartPanel) SetData(words []model.WordCount) {
-	p.data = append([]model.WordCount(nil), words...)
+func (p *WordsDeck) ApplyData(data interface{}, err error) {
+	if err != nil {
+		return
+	}
+	if words, ok := data.([]model.WordCount); ok {
+		p.data = append([]model.WordCount(nil), words...)
+	}
 }
 
-func (p *WordsChartPanel) ContentLines(ctx ViewContext) int {
+func (p *WordsDeck) ContentLines(ctx ViewContext) int {
 	minLines := 8
 	if ctx.ContentWidth < 80 {
 		minLines = 5
@@ -46,17 +60,17 @@ func (p *WordsChartPanel) ContentLines(ctx ViewContext) int {
 	return max(maxItems, minLines)
 }
 
-func (p *WordsChartPanel) ItemCount() int {
+func (p *WordsDeck) ItemCount() int {
 	return min(len(p.data), 10)
 }
 
-func (p *WordsChartPanel) Render(ctx ViewContext, width, height int, active bool, selIdx int) string {
+func (p *WordsDeck) Render(ctx ViewContext, width, height int, active bool, selIdx int) string {
 	style := sectionStyle.Width(width).Height(height)
 	if active {
 		style = activeSectionStyle.Width(width).Height(height)
 	}
 
-	title := chartTitleStyle.Render("Top Words")
+	title := deckTitleStyle.Render(deckTitleWithBadges("Top Words", ctx))
 
 	var content string
 	if len(p.data) > 0 {
@@ -68,7 +82,7 @@ func (p *WordsChartPanel) Render(ctx ViewContext, width, height int, active bool
 	return style.Render(lipgloss.JoinVertical(lipgloss.Left, title, content))
 }
 
-func (p *WordsChartPanel) OnSelect(ctx ViewContext, selIdx int) tea.Cmd {
+func (p *WordsDeck) OnSelect(ctx ViewContext, selIdx int) tea.Cmd {
 	if selIdx < len(p.data) {
 		entry := p.data[selIdx]
 		newTerm := entry.Word
@@ -80,7 +94,7 @@ func (p *WordsChartPanel) OnSelect(ctx ViewContext, selIdx int) tea.Cmd {
 	return nil
 }
 
-func (p *WordsChartPanel) renderContent(ctx ViewContext, chartWidth int, selectedIdx int, active bool) string {
+func (p *WordsDeck) renderContent(ctx ViewContext, deckWidth int, selectedIdx int, active bool) string {
 	maxItems := 10
 	if ctx.ContentWidth < 80 {
 		maxItems = 5
@@ -103,7 +117,7 @@ func (p *WordsChartPanel) renderContent(ctx ViewContext, chartWidth int, selecte
 		countFieldWidth = 3
 	}
 
-	availableWidth := chartWidth - 2
+	availableWidth := deckWidth - 2
 	fixedOverhead := 4 + (countFieldWidth + 2) + 2
 	barWidth := 15
 	if availableWidth < 40 {

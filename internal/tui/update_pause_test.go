@@ -133,7 +133,7 @@ func TestTick_ManualPauseSkipsRefresh(t *testing.T) {
 
 	m := NewDashboardModel(1000, time.Second, false, false, store, "")
 	m.viewPaused = true
-	m.activeSection = SectionCharts
+	m.activeSection = SectionDecks
 
 	m.Update(TickMsg(time.Now()))
 
@@ -166,7 +166,7 @@ func TestTick_ResumesAfterLeavingLogs(t *testing.T) {
 		t.Fatalf("log message changed while focused: got %q", got)
 	}
 
-	m.activeSection = SectionCharts
+	m.activeSection = SectionDecks
 	m.Update(TickMsg(time.Now()))
 	if !m.tickInFlight {
 		t.Fatal("expected async tick fetch to be in-flight after leaving logs")

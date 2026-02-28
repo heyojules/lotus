@@ -73,7 +73,7 @@ NAVIGATION:
 ACTIONS:
   /              - Activate filter (regex supported)
   s              - Search and highlight text in logs
-  [ / ]          - Switch right-side page (deck sets)
+  [ / ]          - Switch view (deck sets)
   Ctrl+f         - Open severity filter modal
   f              - Open fullscreen log viewer modal
   Space          - Pause/unpause UI updates (manual)
@@ -92,7 +92,7 @@ LOG VIEWER NAVIGATION:
   up/down or k/j - Navigate individual entries with smart auto-scroll
 
 SECTIONS:
-  Pages (left)   - Sidebar page navigation (Overview/Patterns/Attributes)
+  Views (left)   - Sidebar view navigation (Overview/Patterns/Attributes)
   Apps (left)    - Instant app list and app-level filtering
   Words          - Most frequent words in logs
   Attributes     - Log attributes by unique value count

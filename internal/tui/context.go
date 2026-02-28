@@ -2,14 +2,16 @@ package tui
 
 import tea "github.com/charmbracelet/bubbletea"
 
-// ViewContext provides read-only context to chart panels for rendering,
+// ViewContext provides read-only context to decks for rendering,
 // replacing direct access to *DashboardModel.
 type ViewContext struct {
-	ContentWidth  int
-	ContentHeight int
-	SearchTerm    string
-	SelectedApp   string
-	UseLogTime    bool
+	ContentWidth   int
+	ContentHeight  int
+	SearchTerm     string
+	SelectedApp    string
+	UseLogTime     bool
+	DeckPaused    bool   // per-deck pause state (set per render)
+	DeckLastError string // per-deck last error (set per render)
 }
 
 // Action identifies what a panel wants the dashboard to do.
