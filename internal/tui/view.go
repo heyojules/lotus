@@ -77,6 +77,26 @@ func (m *DashboardModel) renderDashboard() string {
 	contentWidth := m.contentWidth()
 	showSidebar := m.sidebarVisible
 
+	statusLineHeight := 1
+
+	// Empty page placeholder (e.g. Metrics, Analytics)
+	if len(m.decks) == 0 {
+		placeholderHeight := m.height - statusLineHeight - 2
+		placeholder := renderEmptyPagePlaceholder(m.currentPageTitle(), contentWidth, placeholderHeight)
+
+		statusLine := m.renderStatusLine()
+		contentArea := lipgloss.JoinVertical(lipgloss.Left, placeholder, statusLine)
+
+		var result string
+		if showSidebar {
+			sidebar := m.renderSidebar(m.height - 2)
+			result = lipgloss.JoinHorizontal(lipgloss.Top, sidebar, contentArea)
+		} else {
+			result = contentArea
+		}
+		return m.viewStyle.Render(result)
+	}
+
 	decksHeight, _, logsHeight := m.layoutHeights()
 
 	// Top section: dynamic deck grid.
@@ -118,4 +138,20 @@ func (m *DashboardModel) renderDashboard() string {
 
 	// Apply cached height/width constraint to entire dashboard
 	return m.viewStyle.Render(result)
+}
+
+// renderEmptyPagePlaceholder renders a centered placeholder for pages with no decks.
+func renderEmptyPagePlaceholder(title string, width, height int) string {
+	heading := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("7")).
+		Render(title)
+
+	subtitle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("8")).
+		Render("Coming soon")
+
+	block := lipgloss.JoinVertical(lipgloss.Center, heading, subtitle)
+
+	return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, block)
 }

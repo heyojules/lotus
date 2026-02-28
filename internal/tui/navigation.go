@@ -198,6 +198,12 @@ func (m *DashboardModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, k.Down):
 			m.moveSidebarCursor(1)
 			return m, nil
+		case key.Matches(msg, k.Right):
+			m.nextView()
+			return m, nil
+		case key.Matches(msg, k.Left):
+			m.prevView()
+			return m, nil
 		case key.Matches(msg, k.Enter):
 			m.activateSidebarCursor()
 			return m, nil

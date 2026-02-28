@@ -33,7 +33,7 @@ Lotus is a thin layer that ingests telemetry/analytics, stores them in DuckDB, a
 Input Plugins          Processing              Storage              Read Surfaces
 ─────────────       ──────────────          ─────────────       ─────────────────
 
-  TCP:4000  ──┐     ┌─ Processor ─┐        ┌───────────┐        ┌─ HTTP API
+  HTTP:4000 ──┐     ┌─ Processor ─┐        ┌───────────┐        ┌─ HTTP API
               ├──→  │  + parser   │──→     │  DuckDB   │──→     │  (agents, scripts)
   stdin     ──┘     │             │        │           │        └──────────────
      ↑              └─────────────┘        │           │        ┌─ Socket RPC
@@ -50,11 +50,11 @@ Input Plugins          Processing              Storage              Read Surface
 your-app 2>&1 | lotus
 ```
 
-**Other machines** — send newline-delimited OTEL log JSON to TCP port `4000`:
+**Other machines** — send newline-delimited OTEL log JSON via HTTP on port `4000`:
 
 ```yaml
 host: 0.0.0.0
-tcp-port: 4000
+api-port: 5000
 ```
 
 Single OTEL log-record example:
@@ -62,11 +62,6 @@ Single OTEL log-record example:
 ```json
 {"timeUnixNano":"1761238800000000000","severityText":"Info","body":{"stringValue":"payment created"},"attributes":[{"key":"service.name","value":{"stringValue":"billing-api"}}]}
 ```
-
-> [!NOTE]
-> TCP ingest currently has no built-in TLS/auth. Expose only on trusted networks or behind a secure tunnel.
-
-For production durable forwarding via rsyslog, see [`docs/operations/rsyslog-forwarder.md`](docs/operations/rsyslog-forwarder.md).
 
 ## Themes
 
@@ -87,12 +82,6 @@ Available: `lotus-dark`, `lotus-light`, `dracula`, `github-light`, `gruvbox`, `m
 <p align="center">
   <img src="assets/Screenshot 2026-02-23 at 10.25.45.png" alt="Lotus TUI dashboard" width="700" />
 </p>
-
-## Further reading
-
-- [`docs/layers/README.md`](docs/layers/README.md) — layer docs and interface contracts
-- [`docs/operations/rsyslog-forwarder.md`](docs/operations/rsyslog-forwarder.md) — production forwarding
-- [`docs/operations/duckdb-backups.md`](docs/operations/duckdb-backups.md) — backup strategy
 
 ## License
 

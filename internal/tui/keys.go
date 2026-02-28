@@ -21,6 +21,8 @@ type KeyMap struct {
 	PageUp      key.Binding
 	PageDown    key.Binding
 	Enter       key.Binding
+	Left        key.Binding
+	Right       key.Binding
 
 	// Views
 	NextView key.Binding
@@ -100,6 +102,14 @@ func DefaultKeyMap() KeyMap {
 		Enter: key.NewBinding(
 			key.WithKeys("enter"),
 			key.WithHelp("enter", "details"),
+		),
+		Left: key.NewBinding(
+			key.WithKeys("left"),
+			key.WithHelp("←", "prev view"),
+		),
+		Right: key.NewBinding(
+			key.WithKeys("right"),
+			key.WithHelp("→", "next view"),
 		),
 
 		NextView: key.NewBinding(

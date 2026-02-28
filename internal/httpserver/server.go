@@ -31,7 +31,7 @@ type Server struct {
 // NewServer creates a new HTTP API server.
 func NewServer(addr string, store QueryStore) *Server {
 	if addr == "" {
-		addr = "0.0.0.0:3000"
+		addr = "0.0.0.0:5000"
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Server{
