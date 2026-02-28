@@ -78,10 +78,7 @@ func (m *DashboardModel) deckRowHeightsFor(height int) []int {
 		return required
 	}
 
-	if totalReq <= height {
-		return required
-	}
-
+	// Scale rows proportionally to fill the available height (both up and down).
 	scaled := make([]int, len(required))
 	remaining := height
 	for i, h := range required {

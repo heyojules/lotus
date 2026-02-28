@@ -294,94 +294,103 @@ func (m *DashboardModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// hasLogsSection returns true when the current view shows a log scroll area.
+func (m *DashboardModel) hasLogsSection() bool {
+	return len(m.decks) == 0
+}
+
+// hasDecksSection returns true when the current view shows decks.
+func (m *DashboardModel) hasDecksSection() bool {
+	return len(m.decks) > 0
+}
+
 // nextSection moves to the next section
 func (m *DashboardModel) nextSection() {
 	if m.activeSection == SectionSidebar {
-		if len(m.decks) == 0 {
-			m.activeSection = SectionLogs
-		} else {
+		if m.hasDecksSection() {
 			m.activeSection = SectionDecks
 			if m.activeDeckIdx >= len(m.decks) {
 				m.activeDeckIdx = max(0, len(m.decks)-1)
 			}
+		} else if m.hasLogsSection() {
+			m.activeSection = SectionLogs
 		}
 		return
 	}
 
 	if m.activeSection == SectionFilter {
-		if len(m.decks) == 0 {
-			m.activeSection = SectionLogs
-		} else {
+		if m.hasDecksSection() {
 			m.activeSection = SectionDecks
 			if m.activeDeckIdx >= len(m.decks) {
 				m.activeDeckIdx = max(0, len(m.decks)-1)
 			}
+		} else if m.hasLogsSection() {
+			m.activeSection = SectionLogs
 		}
 		return
 	}
 
 	if m.activeSection == SectionDecks {
-		if len(m.decks) == 0 {
-			m.activeSection = SectionLogs
-			return
-		}
 		if m.activeDeckIdx < len(m.decks)-1 {
 			m.activeDeckIdx++
+		} else if m.sidebarVisible {
+			m.activeSection = SectionSidebar
 		} else {
-			m.activeSection = SectionLogs
+			// Wrap to first deck (no logs section in decks-only view).
+			m.activeDeckIdx = 0
 		}
 		return
 	}
 
-	// SectionLogs → sidebar (if visible) or first chart
+	// SectionLogs → sidebar (if visible) or stay on logs (no decks in list view).
 	if m.sidebarVisible {
 		m.activeSection = SectionSidebar
 	} else {
-		if len(m.decks) == 0 {
-			m.activeSection = SectionLogs
-		} else {
-			m.activeSection = SectionDecks
-			if m.activeDeckIdx >= len(m.decks) {
-				m.activeDeckIdx = max(0, len(m.decks)-1)
-			}
-		}
+		// In list view (no decks), stay on logs.
+		m.activeSection = SectionLogs
 	}
 }
 
 // prevSection moves to the previous section
 func (m *DashboardModel) prevSection() {
 	if m.activeSection == SectionSidebar {
-		m.activeSection = SectionLogs
+		if m.hasLogsSection() {
+			m.activeSection = SectionLogs
+		} else if m.hasDecksSection() {
+			m.activeSection = SectionDecks
+			m.activeDeckIdx = len(m.decks) - 1
+		}
 		return
 	}
 
 	if m.activeSection == SectionFilter {
-		m.activeSection = SectionLogs
+		if m.hasLogsSection() {
+			m.activeSection = SectionLogs
+		} else if m.hasDecksSection() {
+			m.activeSection = SectionDecks
+			m.activeDeckIdx = len(m.decks) - 1
+		}
 		return
 	}
 
 	if m.activeSection == SectionDecks {
-		if len(m.decks) == 0 {
-			m.activeSection = SectionLogs
-			return
-		}
 		if m.activeDeckIdx > 0 {
 			m.activeDeckIdx--
 		} else if m.sidebarVisible {
 			m.activeSection = SectionSidebar
 		} else {
-			m.activeSection = SectionLogs
+			// Wrap to last deck (no logs section in decks-only view).
+			m.activeDeckIdx = len(m.decks) - 1
 		}
 		return
 	}
 
-	// SectionLogs → last deck
-	if len(m.decks) == 0 {
+	// SectionLogs → sidebar (if visible) or stay on logs (no decks in list view).
+	if m.sidebarVisible {
+		m.activeSection = SectionSidebar
+	} else {
 		m.activeSection = SectionLogs
-		return
 	}
-	m.activeSection = SectionDecks
-	m.activeDeckIdx = len(m.decks) - 1
 }
 
 // moveSelection moves the selection within the active section

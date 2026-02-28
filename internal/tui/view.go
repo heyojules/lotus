@@ -27,21 +27,13 @@ func (m *DashboardModel) layoutHeights() (decksHeight, filterHeight, logsHeight 
 		filterHeight = 1
 	}
 
-	decksHeight = m.calculateRequiredDecksHeight()
-	minLogsHeight := 3
-	maxChartsHeight := usableHeight - filterHeight - minLogsHeight
-	if maxChartsHeight < 3 {
-		maxChartsHeight = 3
-	}
-	if decksHeight > maxChartsHeight {
-		decksHeight = maxChartsHeight
+	// No decks → full-height logs (List view).
+	if len(m.decks) == 0 {
+		return 0, filterHeight, usableHeight - filterHeight
 	}
 
-	logsHeight = usableHeight - decksHeight - filterHeight
-	if logsHeight < minLogsHeight {
-		logsHeight = minLogsHeight
-	}
-	return
+	// Has decks → full-height decks (Base view).
+	return usableHeight - filterHeight, filterHeight, 0
 }
 
 // hasFilterOrSearch returns true if a filter or search is active or applied
@@ -79,8 +71,10 @@ func (m *DashboardModel) renderDashboard() string {
 
 	statusLineHeight := 1
 
-	// Empty page placeholder (e.g. Metrics, Analytics)
-	if len(m.decks) == 0 {
+	// Non-Logs pages with no decks: show placeholder.
+	pg := m.activePage()
+	isLogsPage := pg != nil && pg.ID == "logs"
+	if len(m.decks) == 0 && !isLogsPage {
 		placeholderHeight := m.height - statusLineHeight - 2
 		placeholder := renderEmptyPagePlaceholder(m.currentPageTitle(), contentWidth, placeholderHeight)
 
@@ -99,21 +93,25 @@ func (m *DashboardModel) renderDashboard() string {
 
 	decksHeight, _, logsHeight := m.layoutHeights()
 
-	// Top section: dynamic deck grid.
-	topSection := m.renderDecksGrid(contentWidth, decksHeight)
-
-	// Middle section: Filter (only when active)
 	var sections []string
-	sections = append(sections, topSection)
 
+	// Decks grid (Base view — has decks).
+	if len(m.decks) > 0 && decksHeight > 0 {
+		topSection := m.renderDecksGrid(contentWidth, decksHeight)
+		sections = append(sections, topSection)
+	}
+
+	// Filter bar (shown in both views when active).
 	if m.hasFilterOrSearch() {
 		filterSection := m.renderFilter()
 		sections = append(sections, filterSection)
 	}
 
-	// Bottom section: Log scroll
-	logsSection := m.renderLogScroll(logsHeight)
-	sections = append(sections, logsSection)
+	// Log scroll (List view — no decks).
+	if logsHeight > 0 {
+		logsSection := m.renderLogScroll(logsHeight)
+		sections = append(sections, logsSection)
+	}
 
 	// Combine sections with strict height constraints
 	mainContent := lipgloss.JoinVertical(lipgloss.Left, sections...)

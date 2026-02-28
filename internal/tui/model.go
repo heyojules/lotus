@@ -434,17 +434,10 @@ func DefaultPageSpecs() []PageSpec {
 					},
 				},
 				{
-					ID:    "patterns",
-					Title: "Patterns",
+					ID:    "list",
+					Title: "List",
 					Build: func(deps DeckDeps) []Deck {
-						return nil // Placeholder — no decks yet
-					},
-				},
-				{
-					ID:    "attributes",
-					Title: "Attributes",
-					Build: func(deps DeckDeps) []Deck {
-						return nil // Placeholder — no decks yet
+						return nil // No decks — full-height log scroll
 					},
 				},
 			},
@@ -615,12 +608,20 @@ func (m *DashboardModel) loadView(vw *ViewState) {
 
 	if len(m.decks) == 0 {
 		m.activeDeckIdx = 0
+		// Switch to logs section when entering a view with no decks.
+		if m.activeSection == SectionDecks {
+			m.activeSection = SectionLogs
+		}
 		return
 	}
 	if vw.ActiveDeckIdx < 0 || vw.ActiveDeckIdx >= len(m.decks) {
 		vw.ActiveDeckIdx = 0
 	}
 	m.activeDeckIdx = vw.ActiveDeckIdx
+	// Switch to decks section when entering a view with decks.
+	if m.activeSection == SectionLogs {
+		m.activeSection = SectionDecks
+	}
 }
 
 func (m *DashboardModel) nextView() {

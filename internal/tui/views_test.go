@@ -76,10 +76,10 @@ func TestPageSwitch_LoadsCorrectViews(t *testing.T) {
 		t.Skip("need at least two pages")
 	}
 
-	// Logs page should have 3 views
+	// Logs page should have 2 views (Base + List)
 	logsPage := m.pages[0]
-	if got := len(logsPage.Views); got != 3 {
-		t.Fatalf("logs page views = %d, want 3", got)
+	if got := len(logsPage.Views); got != 2 {
+		t.Fatalf("logs page views = %d, want 2", got)
 	}
 
 	// Switch to Metrics page (placeholder with 1 view, no decks)
