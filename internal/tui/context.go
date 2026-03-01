@@ -12,7 +12,7 @@ type ViewContext struct {
 	UseLogTime     bool
 	DeckPaused    bool   // per-deck pause state (set per render)
 	DeckLastError string // per-deck last error (set per render)
-	DeckLoading   bool   // true when deck's data fetch is in-flight
+	DeckLoading       bool   // true when deck's data fetch is in-flight
 }
 
 // ModalContext provides read-only context to modals for rendering, replacing

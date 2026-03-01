@@ -65,15 +65,15 @@ func (p *WordsDeck) ItemCount() int {
 }
 
 func (p *WordsDeck) Render(ctx ViewContext, width, height int, active bool, selIdx int) string {
-	style := sectionStyle.Width(width).Height(height)
+	style := sectionStyle.Width(width).Height(height - 2)
 	if active {
-		style = activeSectionStyle.Width(width).Height(height)
+		style = activeSectionStyle.Width(width).Height(height - 2)
 	}
 
 	title := deckTitleStyle.Render(deckTitleWithBadges("Top Words", ctx))
 
-	// Available content lines = height minus border (2) and title (1).
-	contentLines := height - 3
+	overhead := 3
+	contentLines := height - overhead
 	if contentLines < 1 {
 		contentLines = 1
 	}

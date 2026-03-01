@@ -31,7 +31,7 @@ func (m *DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.viewStyle = lipgloss.NewStyle().
-			Height(m.height).
+			MaxHeight(m.height).
 			MaxWidth(m.width)
 		m.initializeDecks()
 		_, _, logsH := m.layoutHeights()

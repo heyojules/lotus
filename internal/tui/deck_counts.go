@@ -70,9 +70,9 @@ func (p *CountsDeck) ItemCount() int {
 }
 
 func (p *CountsDeck) Render(ctx ViewContext, width, height int, active bool, _ int) string {
-	style := sectionStyle.Width(width).Height(height)
+	style := sectionStyle.Width(width).Height(height - 2)
 	if active {
-		style = activeSectionStyle.Width(width).Height(height)
+		style = activeSectionStyle.Width(width).Height(height - 2)
 	}
 
 	var headerText string
@@ -102,7 +102,8 @@ func (p *CountsDeck) Render(ctx ViewContext, width, height int, active bool, _ i
 
 	title := deckTitleStyle.Render(headerText)
 
-	contentLines := height - 3
+	overhead := 3
+	contentLines := height - overhead
 	if contentLines < 1 {
 		contentLines = 1
 	}

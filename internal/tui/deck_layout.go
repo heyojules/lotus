@@ -78,24 +78,21 @@ func (m *DashboardModel) deckRowHeightsFor(height int) []int {
 		return required
 	}
 
-	// Scale rows proportionally to fill the available height (both up and down).
-	scaled := make([]int, len(required))
-	remaining := height
-	for i, h := range required {
-		if i == len(required)-1 {
-			scaled[i] = max(3, remaining)
-			break
-		}
-		value := int(float64(h) * float64(height) / float64(totalReq))
-		if value < 3 {
-			value = 3
-		}
-		scaled[i] = value
-		remaining -= value
+	// Distribute height equally across rows.
+	rows := len(required)
+	perRow := height / rows
+	if perRow < 3 {
+		perRow = 3
 	}
 
-	if remaining > 0 {
-		scaled[len(scaled)-1] += remaining
+	scaled := make([]int, rows)
+	for i := range scaled {
+		scaled[i] = perRow
+	}
+	// Give the last row any remaining pixels.
+	scaled[rows-1] = height - perRow*(rows-1)
+	if scaled[rows-1] < 3 {
+		scaled[rows-1] = 3
 	}
 
 	return scaled
@@ -238,6 +235,7 @@ func (m *DashboardModel) renderDecksGrid(width int, height int) string {
 	result := lipgloss.JoinVertical(lipgloss.Left, renderedRows...)
 
 	constrainedStyle := lipgloss.NewStyle().
+		Height(height).
 		MaxHeight(height).
 		Width(width)
 

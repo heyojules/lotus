@@ -33,15 +33,16 @@ func (d *ListDeck) ContentLines(_ ViewContext) int { return 100 }
 func (d *ListDeck) ItemCount() int { return len(d.m.logEntries) }
 
 func (d *ListDeck) Render(ctx ViewContext, width, height int, active bool, selIdx int) string {
-	style := sectionStyle.Width(width).Height(height)
+	style := sectionStyle.Width(width).Height(height - 2)
 	if active {
-		style = activeSectionStyle.Width(width).Height(height)
+		style = activeSectionStyle.Width(width).Height(height - 2)
 	}
 
 	title := deckTitleStyle.Render("Log List")
 
-	// Available content lines = height minus border (2) and title (1).
-	contentHeight := height - 3
+	// Available content lines = height minus border (top+bottom=2) and title (1).
+	overhead := 3
+	contentHeight := height - overhead
 	if contentHeight < 1 {
 		contentHeight = 1
 	}

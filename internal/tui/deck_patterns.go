@@ -52,9 +52,9 @@ func (p *PatternsDeck) ItemCount() int {
 }
 
 func (p *PatternsDeck) Render(ctx ViewContext, width, height int, active bool, _ int) string {
-	style := sectionStyle.Width(width).Height(height)
+	style := sectionStyle.Width(width).Height(height - 2)
 	if active {
-		style = activeSectionStyle.Width(width).Height(height)
+		style = activeSectionStyle.Width(width).Height(height - 2)
 	}
 
 	patternCount, totalLogs := 0, 0
@@ -69,7 +69,8 @@ func (p *PatternsDeck) Render(ctx ViewContext, width, height int, active bool, _
 	titleText = deckTitleWithBadges(titleText, ctx)
 	title := deckTitleStyle.Render(titleText)
 
-	contentLines := height - 3
+	overhead := 3
+	contentLines := height - overhead
 	if contentLines < 1 {
 		contentLines = 1
 	}
