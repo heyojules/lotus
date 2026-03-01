@@ -199,6 +199,7 @@ func (m *DashboardModel) renderDecksGrid(width int, height int) string {
 			if state, exists := m.deckStates[tp.TypeID()]; exists {
 				ctx.DeckPaused = state.Paused
 				ctx.DeckLastError = state.LastError
+				ctx.DeckLoading = state.FetchInFlight
 			}
 		}
 		return m.decks[idx].Render(ctx, deckWidth, h, active, selIdx)

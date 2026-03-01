@@ -124,6 +124,13 @@ func (m *DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case DeckPauseMsg:
 		return m.handleDeckPause(msg)
 
+	case ViewFlashMsg:
+		m.viewFlashTitle = ""
+		return m, nil
+
+	case SpinnerTickMsg:
+		return m.handleSpinnerTick()
+
 	}
 
 	return m, tea.Batch(cmds...)
@@ -194,7 +201,8 @@ func (m *DashboardModel) handleMouseClick(x, y int) (tea.Model, tea.Cmd) {
 			// Sidebar rows are mixed views + apps; resolve click via rendered rows.
 			if idx, ok := m.sidebarCursorAtMouseRow(y); ok {
 				m.sidebarCursor = idx
-				m.activateSidebarCursor()
+				cmd := m.activateSidebarCursor()
+				return m, cmd
 			}
 			return m, nil
 		}
@@ -259,9 +267,18 @@ func (m *DashboardModel) activeSeverityLevels() []string {
 
 // visibleLogLines returns how many log lines fit on screen given the current
 // terminal dimensions, using the shared layoutHeights calculation.
+// When the List view (ListDeck) is active, the deck area height is used
+// because the log scroll is rendered inside the deck grid.
 func (m *DashboardModel) visibleLogLines() int {
-	_, _, logsHeight := m.layoutHeights()
-	return logsHeight
+	decksH, _, logsH := m.layoutHeights()
+	if logsH > 0 {
+		return logsH
+	}
+	// ListDeck: logs are rendered inside the decks area.
+	if decksH > 0 {
+		return decksH
+	}
+	return 0
 }
 
 func (m *DashboardModel) fetchTickDataCmd(opts model.QueryOpts, severityLevels []string, messagePattern string, logLimit int, drainFrom int) tea.Cmd {
@@ -494,7 +511,9 @@ func (m *DashboardModel) handleDeckTick(msg DeckTickMsg) (tea.Model, tea.Cmd) {
 		return m, reschedule
 	}
 
-	return m, tea.Batch(fetchCmd, reschedule)
+	// Start spinner animation while fetch is in flight.
+	spinnerCmd := m.startSpinnerIfNeeded()
+	return m, tea.Batch(fetchCmd, reschedule, spinnerCmd)
 }
 
 // handleDeckData processes fetched deck data and distributes to all instances.

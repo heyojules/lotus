@@ -42,27 +42,6 @@ Input Plugins          Processing              Storage              Read Surface
                     (batch append)         └───────────┘
 ```
 
-## Getting started
-
-**Same machine** — pipe stdout/stderr directly:
-
-```sh
-your-app 2>&1 | lotus
-```
-
-**Other machines** — send newline-delimited OTEL log JSON via HTTP on port `4000`:
-
-```yaml
-host: 0.0.0.0
-api-port: 5000
-```
-
-Single OTEL log-record example:
-
-```json
-{"timeUnixNano":"1761238800000000000","severityText":"Info","body":{"stringValue":"payment created"},"attributes":[{"key":"service.name","value":{"stringValue":"billing-api"}}]}
-```
-
 ## Themes
 
 Lotus ships with 12 color themes:

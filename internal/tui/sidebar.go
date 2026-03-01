@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -55,31 +56,71 @@ func (m *DashboardModel) clampSidebarCursor() {
 	}
 }
 
-func (m *DashboardModel) moveSidebarCursor(delta int) {
+func (m *DashboardModel) moveSidebarCursor(delta int) tea.Cmd {
 	items := m.sidebarItems()
 	if len(items) == 0 {
-		return
+		return nil
 	}
 	m.sidebarCursor += delta
 	m.clampSidebarCursor()
+	return m.applySidebarItem(items[m.sidebarCursor])
 }
 
-func (m *DashboardModel) activateSidebarCursor() {
+func (m *DashboardModel) activateSidebarCursor() tea.Cmd {
 	items := m.sidebarItems()
 	if len(items) == 0 {
-		return
+		return nil
 	}
 	m.clampSidebarCursor()
-	m.applySidebarItem(items[m.sidebarCursor])
+	return m.applySidebarItem(items[m.sidebarCursor])
 }
 
-func (m *DashboardModel) applySidebarItem(item sidebarItem) {
+func (m *DashboardModel) applySidebarItem(item sidebarItem) tea.Cmd {
 	switch item.kind {
 	case sidebarItemPage:
 		m.activatePage(item.pageIdx)
+		return nil
 	case sidebarItemApp:
+		prev := m.selectedApp
 		m.selectedApp = item.appName
+		if prev == item.appName {
+			return nil
+		}
+		// Immediately refresh logs and deck data for the new app.
+		var cmds []tea.Cmd
+
+		// Refresh logs.
+		m.tickInFlight = false
+		opts := m.queryOpts()
+		severityLevels := m.activeSeverityLevels()
+		var messagePattern string
+		if m.filterRegex != nil {
+			messagePattern = m.filterRegex.String()
+		}
+		logLimit := m.visibleLogLines()
+		drainFrom := m.drain3LastProcessed
+		cmds = append(cmds, m.fetchTickDataCmd(opts, severityLevels, messagePattern, logLimit, drainFrom))
+
+		// Refresh decks.
+		for tid, state := range m.deckStates {
+			if state.FetchInFlight {
+				continue
+			}
+			for _, vw := range m.allViews() {
+				for _, dk := range vw.Decks {
+					if tp, ok := dk.(TickableDeck); ok && tp.TypeID() == tid {
+						state.FetchInFlight = true
+						cmds = append(cmds, tp.FetchCmd(m.store, opts))
+						goto nextDeck
+					}
+				}
+			}
+		nextDeck:
+		}
+
+		return tea.Batch(cmds...)
 	}
+	return nil
 }
 
 func (m *DashboardModel) buildSidebarLines() ([]string, map[int]int) {

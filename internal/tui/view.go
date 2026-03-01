@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"time"
+
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -27,8 +29,11 @@ func (m *DashboardModel) layoutHeights() (decksHeight, filterHeight, logsHeight 
 		filterHeight = 1
 	}
 
-	// Has decks → full-height decks (Base view).
-	// No decks → placeholder (handled in renderDashboard), no logs needed.
+	if len(m.decks) == 0 {
+		// No decks → placeholder page (no content areas needed).
+		return 0, filterHeight, 0
+	}
+	// Has decks → full-height decks grid.
 	return usableHeight - filterHeight, filterHeight, 0
 }
 
@@ -67,7 +72,7 @@ func (m *DashboardModel) renderDashboard() string {
 
 	statusLineHeight := 1
 
-	// No decks: show placeholder.
+	// No decks: show placeholder (Metrics, Analytics, etc.).
 	if len(m.decks) == 0 {
 		placeholderHeight := m.height - statusLineHeight - 2
 		placeholder := renderEmptyPagePlaceholder(m.currentPageTitle(), contentWidth, placeholderHeight)
@@ -85,26 +90,34 @@ func (m *DashboardModel) renderDashboard() string {
 		return m.viewStyle.Render(result)
 	}
 
-	decksHeight, _, logsHeight := m.layoutHeights()
+	decksHeight, _, _ := m.layoutHeights()
 
 	var sections []string
 
-	// Decks grid (Base view — has decks).
-	if len(m.decks) > 0 && decksHeight > 0 {
+	// Decks grid.
+	if decksHeight > 0 {
 		topSection := m.renderDecksGrid(contentWidth, decksHeight)
+
+		// View flash overlay: show title briefly after view switch.
+		if m.viewFlashTitle != "" && time.Now().Before(m.viewFlashExpiry) {
+			flashStyle := lipgloss.NewStyle().
+				Bold(true).
+				Foreground(ColorBlue).
+				Align(lipgloss.Center)
+			flashText := flashStyle.Render("[ " + m.viewFlashTitle + " ]")
+			topSection = lipgloss.Place(contentWidth, decksHeight, lipgloss.Center, lipgloss.Center, flashText,
+				lipgloss.WithWhitespaceChars(" "),
+				lipgloss.WithWhitespaceForeground(lipgloss.Color("0")),
+			)
+		}
+
 		sections = append(sections, topSection)
 	}
 
-	// Filter bar (shown in both views when active).
+	// Filter bar (shown when active).
 	if m.hasFilterOrSearch() {
 		filterSection := m.renderFilter()
 		sections = append(sections, filterSection)
-	}
-
-	// Log scroll (List view — no decks).
-	if logsHeight > 0 {
-		logsSection := m.renderLogScroll(logsHeight)
-		sections = append(sections, logsSection)
 	}
 
 	// Combine sections with strict height constraints

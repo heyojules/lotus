@@ -81,6 +81,8 @@ func (p *WordsDeck) Render(ctx ViewContext, width, height int, active bool, selI
 	var content string
 	if len(p.data) > 0 {
 		content = p.renderContent(ctx, width, contentLines, selIdx, active)
+	} else if ctx.DeckLoading {
+		content = renderLoadingPlaceholder(width-2, contentLines)
 	} else {
 		content = helpStyle.Render("No data available")
 	}

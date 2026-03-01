@@ -77,6 +77,8 @@ func (p *PatternsDeck) Render(ctx ViewContext, width, height int, active bool, _
 	var content string
 	if p.drain3Manager != nil && patternCount > 0 {
 		content = p.renderContent(width, contentLines)
+	} else if ctx.DeckLoading {
+		content = renderLoadingPlaceholder(width-2, contentLines)
 	} else {
 		content = helpStyle.Render("Extracting patterns")
 	}

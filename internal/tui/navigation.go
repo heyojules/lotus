@@ -115,12 +115,12 @@ func (m *DashboardModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case key.Matches(msg, k.NextView):
-		m.nextView()
-		return m, nil
+		cmd := m.nextView()
+		return m, cmd
 
 	case key.Matches(msg, k.PrevView):
-		m.prevView()
-		return m, nil
+		cmd := m.prevView()
+		return m, cmd
 
 	case key.Matches(msg, k.ToggleColumns):
 		m.showColumns = !m.showColumns
@@ -193,20 +193,20 @@ func (m *DashboardModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.activeSection == SectionSidebar && m.sidebarVisible {
 		switch {
 		case key.Matches(msg, k.Up):
-			m.moveSidebarCursor(-1)
-			return m, nil
+			cmd := m.moveSidebarCursor(-1)
+			return m, cmd
 		case key.Matches(msg, k.Down):
-			m.moveSidebarCursor(1)
-			return m, nil
+			cmd := m.moveSidebarCursor(1)
+			return m, cmd
 		case key.Matches(msg, k.Right):
-			m.nextView()
-			return m, nil
+			cmd := m.nextView()
+			return m, cmd
 		case key.Matches(msg, k.Left):
-			m.prevView()
-			return m, nil
+			cmd := m.prevView()
+			return m, cmd
 		case key.Matches(msg, k.Enter):
-			m.activateSidebarCursor()
-			return m, nil
+			cmd := m.activateSidebarCursor()
+			return m, cmd
 		}
 	}
 

@@ -92,7 +92,13 @@ type NavigationState struct {
 	deckSelIdx    []int
 	pages         []PageState
 	activePageIdx int
+
+	viewFlashTitle  string    // brief overlay text on view switch
+	viewFlashExpiry time.Time // when to clear the flash
 }
+
+// ViewFlashMsg signals the view flash overlay should be cleared.
+type ViewFlashMsg struct{}
 
 // PageState represents a top-level page (e.g. Logs, Metrics) shown in the sidebar.
 type PageState struct {
@@ -113,8 +119,9 @@ type ViewState struct {
 
 // DeckDeps provides dependencies for deck constructors, replacing *DashboardModel.
 type DeckDeps struct {
-	Store          model.LogQuerier
-	Drain3Manager  *Drain3Manager
+	Model            *DashboardModel // for decks that need full model access (e.g. ListDeck)
+	Store            model.LogQuerier
+	Drain3Manager    *Drain3Manager
 	PushCountsModal  tea.Cmd
 	PushPatternsModal tea.Cmd
 	FormatAttrModal  func(entry *AttributeEntry, maxWidth int) string
@@ -367,6 +374,7 @@ func (m *DashboardModel) allViews() []*ViewState {
 // SetPages configures top-level pages (each containing views) and activates the first page.
 func (m *DashboardModel) SetPages(specs []PageSpec) {
 	deps := DeckDeps{
+		Model:             m,
 		Store:             m.store,
 		Drain3Manager:     m.drain3Manager,
 		PushCountsModal:   m.pushCountsModalCmd(),
@@ -434,10 +442,10 @@ func DefaultPageSpecs() []PageSpec {
 					},
 				},
 				{
-					ID:    "patterns",
-					Title: "Patterns",
+					ID:    "list",
+					Title: "List",
 					Build: func(deps DeckDeps) []Deck {
-						return nil // No decks — placeholder view
+						return []Deck{NewListDeck(deps.Model)}
 					},
 				},
 			},
@@ -595,7 +603,10 @@ func (m *DashboardModel) activateView(idx int) {
 		m.persistActiveViewState()
 	}
 	pg.ActiveViewIdx = idx
-	m.loadView(&pg.Views[idx])
+	vw := &pg.Views[idx]
+	m.viewFlashTitle = vw.Title
+	m.viewFlashExpiry = time.Now().Add(800 * time.Millisecond)
+	m.loadView(vw)
 }
 
 // loadView copies a ViewState's decks into the flat navigation fields.
@@ -624,20 +635,26 @@ func (m *DashboardModel) loadView(vw *ViewState) {
 	}
 }
 
-func (m *DashboardModel) nextView() {
+func (m *DashboardModel) nextView() tea.Cmd {
 	pg := m.activePage()
 	if pg == nil || len(pg.Views) <= 1 {
-		return
+		return nil
 	}
 	m.activateView((pg.ActiveViewIdx + 1) % len(pg.Views))
+	return tea.Tick(800*time.Millisecond, func(_ time.Time) tea.Msg {
+		return ViewFlashMsg{}
+	})
 }
 
-func (m *DashboardModel) prevView() {
+func (m *DashboardModel) prevView() tea.Cmd {
 	pg := m.activePage()
 	if pg == nil || len(pg.Views) <= 1 {
-		return
+		return nil
 	}
 	m.activateView((pg.ActiveViewIdx - 1 + len(pg.Views)) % len(pg.Views))
+	return tea.Tick(800*time.Millisecond, func(_ time.Time) tea.Msg {
+		return ViewFlashMsg{}
+	})
 }
 
 func (m *DashboardModel) currentViewTitle() string {
@@ -740,6 +757,11 @@ func (m *DashboardModel) Init() tea.Cmd {
 
 	// Start independent deck ticks
 	cmds = append(cmds, m.registerDeckTicks()...)
+
+	// Start spinner tick for loading indicators
+	if cmd := m.startSpinnerIfNeeded(); cmd != nil {
+		cmds = append(cmds, cmd)
+	}
 
 	return tea.Batch(cmds...)
 }
