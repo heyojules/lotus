@@ -95,3 +95,27 @@ func TestInsertBuffer_ConcurrentAdd(t *testing.T) {
 		t.Errorf("concurrent insert TotalLogCount = %d, want %d", count, expected)
 	}
 }
+
+func TestInsertBuffer_StopIsIdempotent(t *testing.T) {
+	store := newTestStore(t)
+	buf := NewInsertBuffer(store)
+
+	buf.Add(&LogRecord{
+		Timestamp: time.Now(),
+		Level:     "INFO",
+		Message:   "idempotent stop",
+		Source:    "stdin",
+		App:       "default",
+	})
+
+	buf.Stop()
+	buf.Stop()
+
+	count, err := store.TotalLogCount(QueryOpts{})
+	if err != nil {
+		t.Fatalf("TotalLogCount: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("after double Stop, TotalLogCount = %d, want 1", count)
+	}
+}

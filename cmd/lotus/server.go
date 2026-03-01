@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/tinytelemetry/lotus/internal/backup"
@@ -102,10 +103,33 @@ func runServer(cfg appConfig) error {
 		defer sockServer.Stop()
 	}
 
-	// Build input plugins and source multiplexer
+	// Set up context and signal handling before errgroup
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-sigCh
+		fmt.Println("\nShutting down gracefully... (press Ctrl+C again to force)")
+		cancel()
+
+		// Shutdown deadline starts now — not at boot.
+		deadline := time.NewTimer(10 * time.Second)
+		defer deadline.Stop()
+
+		select {
+		case <-sigCh:
+			fmt.Println("\nForce shutdown.")
+		case <-deadline.C:
+			fmt.Println("Shutdown timed out, forcing exit.")
+		}
+		cleanupSocket(cfg.SocketPath)
+		os.Exit(1)
+	}()
+
+	// Build input plugins and source multiplexer
 	plugins := buildInputPlugins(InputPluginConfig{
 		TCPEnabled: cfg.TCPEnabled,
 		TCPAddr:    cfg.TCPAddr,
@@ -155,17 +179,9 @@ func runServer(cfg appConfig) error {
 		})
 	}
 
-	// Signal handler
+	// Wait for context cancellation (from signal handler) in the errgroup
 	g.Go(func() error {
-		sigCh := make(chan os.Signal, 1)
-		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-		defer signal.Stop(sigCh)
-
-		select {
-		case <-sigCh:
-			fmt.Println("\nShutting down...")
-		case <-gctx.Done():
-		}
+		<-gctx.Done()
 		return nil
 	})
 
@@ -177,7 +193,17 @@ func runServer(cfg appConfig) error {
 	cancel()
 	mux.Stop()
 
+	// If we reach here, graceful shutdown succeeded within the deadline.
+	// The signal goroutine (if active) dies with the process.
+	signal.Stop(sigCh)
+
 	return nil
+}
+
+func cleanupSocket(path string) {
+	if path != "" {
+		os.Remove(path)
+	}
 }
 
 func configureRuntimeLogger() func() {

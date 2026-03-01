@@ -27,12 +27,8 @@ func (m *DashboardModel) layoutHeights() (decksHeight, filterHeight, logsHeight 
 		filterHeight = 1
 	}
 
-	// No decks → full-height logs (List view).
-	if len(m.decks) == 0 {
-		return 0, filterHeight, usableHeight - filterHeight
-	}
-
 	// Has decks → full-height decks (Base view).
+	// No decks → placeholder (handled in renderDashboard), no logs needed.
 	return usableHeight - filterHeight, filterHeight, 0
 }
 
@@ -71,10 +67,8 @@ func (m *DashboardModel) renderDashboard() string {
 
 	statusLineHeight := 1
 
-	// Non-Logs pages with no decks: show placeholder.
-	pg := m.activePage()
-	isLogsPage := pg != nil && pg.ID == "logs"
-	if len(m.decks) == 0 && !isLogsPage {
+	// No decks: show placeholder.
+	if len(m.decks) == 0 {
 		placeholderHeight := m.height - statusLineHeight - 2
 		placeholder := renderEmptyPagePlaceholder(m.currentPageTitle(), contentWidth, placeholderHeight)
 

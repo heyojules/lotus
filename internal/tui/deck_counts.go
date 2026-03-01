@@ -102,9 +102,14 @@ func (p *CountsDeck) Render(ctx ViewContext, width, height int, active bool, _ i
 
 	title := deckTitleStyle.Render(headerText)
 
+	contentLines := height - 3
+	if contentLines < 1 {
+		contentLines = 1
+	}
+
 	var content string
 	if len(p.data) > 0 {
-		content = p.renderContent(ctx, width)
+		content = p.renderContent(ctx, width, contentLines)
 	} else {
 		content = helpStyle.Render("No data available")
 	}
@@ -119,7 +124,7 @@ func (p *CountsDeck) OnSelect(_ ViewContext, _ int) tea.Cmd {
 	return p.pushModalCmd
 }
 
-func (p *CountsDeck) renderContent(ctx ViewContext, deckWidth int) string {
+func (p *CountsDeck) renderContent(ctx ViewContext, deckWidth int, availableLines int) string {
 	if len(p.data) == 0 {
 		return helpStyle.Render("No data available")
 	}
@@ -130,13 +135,13 @@ func (p *CountsDeck) renderContent(ctx ViewContext, deckWidth int) string {
 	}
 
 	legendWidth := 18
-	deckHeight := 8
+	deckHeight := availableLines
+	if deckHeight < 4 {
+		deckHeight = 4
+	}
 	actualChartWidth := deckWidth - legendWidth - 2
 	if actualChartWidth < 20 {
 		actualChartWidth = 20
-	}
-	if ctx.ContentWidth < 80 {
-		deckHeight = 6
 	}
 
 	dataPoints := len(p.data)

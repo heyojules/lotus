@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/tinytelemetry/lotus/internal/socketrpc"
 	"github.com/tinytelemetry/lotus/internal/tui"
@@ -64,13 +68,28 @@ func runTUI(cfg cliConfig) error {
 	if err != nil {
 		return fmt.Errorf("cannot connect to lotus service at %s: %w\nIs the lotus service running? Start it with: lotus", cfg.SocketPath, err)
 	}
-	defer client.Close()
+	defer func() {
+		done := make(chan struct{})
+		go func() { client.Close(); close(done) }()
+		timer := time.NewTimer(2 * time.Second)
+		defer timer.Stop()
+		select {
+		case <-done:
+		case <-timer.C:
+		}
+	}()
 
 	dashboard := tui.NewDashboardModel(cfg.LogBuffer, cfg.UpdateInterval, cfg.ReverseScrollWheel, cfg.UseLogTime, client, "Socket")
 	dashView := tui.NewDashboardView(dashboard)
 	app := tui.NewApp(dashView)
 
 	p := tea.NewProgram(app, tea.WithAltScreen(), tea.WithMouseCellMotion())
+	sigCtx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stopSignals()
+	go func() {
+		<-sigCtx.Done()
+		p.Quit()
+	}()
 	if _, err := p.Run(); err != nil {
 		if strings.Contains(err.Error(), "TTY") || strings.Contains(err.Error(), "/dev/tty") {
 			return fmt.Errorf("TUI requires a real terminal")

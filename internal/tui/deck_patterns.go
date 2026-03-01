@@ -69,9 +69,14 @@ func (p *PatternsDeck) Render(ctx ViewContext, width, height int, active bool, _
 	titleText = deckTitleWithBadges(titleText, ctx)
 	title := deckTitleStyle.Render(titleText)
 
+	contentLines := height - 3
+	if contentLines < 1 {
+		contentLines = 1
+	}
+
 	var content string
 	if p.drain3Manager != nil && patternCount > 0 {
-		content = p.renderContent(width)
+		content = p.renderContent(width, contentLines)
 	} else {
 		content = helpStyle.Render("Extracting patterns")
 	}
@@ -86,12 +91,17 @@ func (p *PatternsDeck) OnSelect(_ ViewContext, _ int) tea.Cmd {
 	return nil
 }
 
-func (p *PatternsDeck) renderContent(deckWidth int) string {
+func (p *PatternsDeck) renderContent(deckWidth int, availableLines int) string {
 	if p.drain3Manager == nil {
 		return helpStyle.Render("Pattern extraction not available")
 	}
 
-	patterns := p.drain3Manager.GetTopPatterns(8)
+	displayLines := availableLines
+	if displayLines < 1 {
+		displayLines = 1
+	}
+
+	patterns := p.drain3Manager.GetTopPatterns(displayLines)
 
 	maxCount := 0
 	for _, pat := range patterns {
@@ -105,7 +115,6 @@ func (p *PatternsDeck) renderContent(deckWidth int) string {
 		templateWidth = 20
 	}
 
-	const displayLines = 8
 	var lines []string
 
 	for i := 0; i < displayLines; i++ {

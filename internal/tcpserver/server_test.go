@@ -29,3 +29,15 @@ func TestNewServer_UsesConfiguredAddressAndBuffers(t *testing.T) {
 		t.Fatalf("max line size = %d, want %d", got, 2048)
 	}
 }
+
+func TestStop_IsIdempotent(t *testing.T) {
+	t.Parallel()
+
+	s := NewServer("")
+	if err := s.Stop(); err != nil {
+		t.Fatalf("first stop: %v", err)
+	}
+	if err := s.Stop(); err != nil {
+		t.Fatalf("second stop: %v", err)
+	}
+}

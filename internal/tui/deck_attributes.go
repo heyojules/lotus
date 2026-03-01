@@ -38,7 +38,7 @@ func (p *AttributesDeck) DefaultInterval() time.Duration { return 2 * time.Secon
 
 func (p *AttributesDeck) FetchCmd(store model.LogQuerier, opts model.QueryOpts) tea.Cmd {
 	return func() tea.Msg {
-		attrKeys, err := store.TopAttributeKeys(20, opts)
+		attrKeys, err := store.TopAttributeKeys(50, opts)
 		var entries []AttributeEntry
 		if err == nil {
 			entries = make([]AttributeEntry, len(attrKeys))
@@ -90,9 +90,14 @@ func (p *AttributesDeck) Render(ctx ViewContext, width, height int, active bool,
 
 	title := deckTitleStyle.Render(deckTitleWithBadges("Top Attributes", ctx))
 
+	contentLines := height - 3
+	if contentLines < 1 {
+		contentLines = 1
+	}
+
 	var content string
 	if len(p.data) > 0 {
-		content = p.renderContent(ctx, width, selIdx, active)
+		content = p.renderContent(ctx, width, contentLines, selIdx, active)
 	} else {
 		content = helpStyle.Render("No data available")
 	}
@@ -122,13 +127,10 @@ func (p *AttributesDeck) OnSelect(ctx ViewContext, selIdx int) tea.Cmd {
 	return nil
 }
 
-func (p *AttributesDeck) renderContent(ctx ViewContext, deckWidth int, selectedIdx int, active bool) string {
-	maxItems := 10
-	if ctx.ContentWidth < 80 {
-		maxItems = 5
-	}
-	if len(p.data) < maxItems {
-		maxItems = len(p.data)
+func (p *AttributesDeck) renderContent(ctx ViewContext, deckWidth int, availableLines int, selectedIdx int, active bool) string {
+	maxItems := min(len(p.data), availableLines)
+	if maxItems < 1 {
+		maxItems = 1
 	}
 
 	var lines []string

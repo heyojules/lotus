@@ -31,7 +31,7 @@ func (p *WordsDeck) DefaultInterval() time.Duration { return 2 * time.Second }
 
 func (p *WordsDeck) FetchCmd(store model.LogQuerier, opts model.QueryOpts) tea.Cmd {
 	return func() tea.Msg {
-		words, err := store.TopWords(20, opts)
+		words, err := store.TopWords(50, opts)
 		return DeckDataMsg{DeckTypeID: "words", Data: words, Err: err}
 	}
 }
@@ -72,9 +72,15 @@ func (p *WordsDeck) Render(ctx ViewContext, width, height int, active bool, selI
 
 	title := deckTitleStyle.Render(deckTitleWithBadges("Top Words", ctx))
 
+	// Available content lines = height minus border (2) and title (1).
+	contentLines := height - 3
+	if contentLines < 1 {
+		contentLines = 1
+	}
+
 	var content string
 	if len(p.data) > 0 {
-		content = p.renderContent(ctx, width, selIdx, active)
+		content = p.renderContent(ctx, width, contentLines, selIdx, active)
 	} else {
 		content = helpStyle.Render("No data available")
 	}
@@ -94,13 +100,10 @@ func (p *WordsDeck) OnSelect(ctx ViewContext, selIdx int) tea.Cmd {
 	return nil
 }
 
-func (p *WordsDeck) renderContent(ctx ViewContext, deckWidth int, selectedIdx int, active bool) string {
-	maxItems := 10
-	if ctx.ContentWidth < 80 {
-		maxItems = 5
-	}
-	if len(p.data) < maxItems {
-		maxItems = len(p.data)
+func (p *WordsDeck) renderContent(ctx ViewContext, deckWidth int, availableLines int, selectedIdx int, active bool) string {
+	maxItems := min(len(p.data), availableLines)
+	if maxItems < 1 {
+		maxItems = 1
 	}
 
 	var lines []string

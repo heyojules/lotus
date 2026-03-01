@@ -18,6 +18,7 @@ type RetentionCleaner struct {
 	done          chan struct{}
 	wg            sync.WaitGroup
 	tickWg        sync.WaitGroup
+	stopOnce      sync.Once
 }
 
 // NewRetentionCleaner creates a retention cleaner that deletes expired logs.
@@ -78,7 +79,9 @@ func (rc *RetentionCleaner) cleanup() {
 
 // Stop signals the cleaner to stop and waits for it to finish.
 func (rc *RetentionCleaner) Stop() {
-	close(rc.done)
-	rc.tickWg.Wait()
-	rc.wg.Wait()
+	rc.stopOnce.Do(func() {
+		close(rc.done)
+		rc.tickWg.Wait()
+		rc.wg.Wait()
+	})
 }

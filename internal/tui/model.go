@@ -434,10 +434,10 @@ func DefaultPageSpecs() []PageSpec {
 					},
 				},
 				{
-					ID:    "list",
-					Title: "List",
+					ID:    "patterns",
+					Title: "Patterns",
 					Build: func(deps DeckDeps) []Deck {
-						return nil // No decks — full-height log scroll
+						return nil // No decks — placeholder view
 					},
 				},
 			},

@@ -30,6 +30,9 @@ type Server struct {
 	listener   net.Listener
 	wg         sync.WaitGroup
 	quit       chan struct{}
+	stopOnce   sync.Once
+	connMu     sync.Mutex
+	conns      map[net.Conn]struct{}
 }
 
 // NewServer creates a new socket RPC server.
@@ -38,6 +41,7 @@ func NewServer(socketPath string, store model.ReadAPI) *Server {
 		socketPath: socketPath,
 		store:      store,
 		quit:       make(chan struct{}),
+		conns:      make(map[net.Conn]struct{}),
 	}
 }
 
@@ -73,14 +77,25 @@ func (s *Server) Start() error {
 	return nil
 }
 
-// Stop closes the listener, waits for connections to drain, and removes the socket file.
+// Stop closes the listener, waits for connections to drain (with timeout), and removes the socket file.
 func (s *Server) Stop() {
-	close(s.quit)
-	if s.listener != nil {
-		s.listener.Close()
-	}
-	s.wg.Wait()
-	os.Remove(s.socketPath)
+	s.stopOnce.Do(func() {
+		close(s.quit)
+		if s.listener != nil {
+			_ = s.listener.Close()
+		}
+		s.closeActiveConnections()
+
+		waitDone := make(chan struct{})
+		go func() { s.wg.Wait(); close(waitDone) }()
+		timer := time.NewTimer(3 * time.Second)
+		defer timer.Stop()
+		select {
+		case <-waitDone:
+		case <-timer.C:
+		}
+		_ = os.Remove(s.socketPath)
+	})
 }
 
 func (s *Server) acceptLoop() {
@@ -98,6 +113,7 @@ func (s *Server) acceptLoop() {
 				continue
 			}
 		}
+		s.trackConn(conn)
 		s.wg.Add(1)
 		go s.handleConn(conn)
 	}
@@ -105,6 +121,7 @@ func (s *Server) acceptLoop() {
 
 func (s *Server) handleConn(conn net.Conn) {
 	defer s.wg.Done()
+	defer s.untrackConn(conn)
 	defer conn.Close()
 
 	scanner := bufio.NewScanner(conn)
@@ -129,6 +146,31 @@ func (s *Server) handleConn(conn net.Conn) {
 		if err := encoder.Encode(resp); err != nil {
 			return
 		}
+	}
+}
+
+func (s *Server) trackConn(conn net.Conn) {
+	s.connMu.Lock()
+	defer s.connMu.Unlock()
+	s.conns[conn] = struct{}{}
+}
+
+func (s *Server) untrackConn(conn net.Conn) {
+	s.connMu.Lock()
+	defer s.connMu.Unlock()
+	delete(s.conns, conn)
+}
+
+func (s *Server) closeActiveConnections() {
+	s.connMu.Lock()
+	conns := make([]net.Conn, 0, len(s.conns))
+	for conn := range s.conns {
+		conns = append(conns, conn)
+	}
+	s.connMu.Unlock()
+
+	for _, conn := range conns {
+		_ = conn.Close()
 	}
 }
 

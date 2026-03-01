@@ -46,6 +46,7 @@ type InsertBuffer struct {
 	// backpressureCount tracks inline flushes for throttled logging.
 	backpressureCount atomic.Int64
 	lastBPLog         atomic.Int64 // unix timestamp of last backpressure log
+	stopOnce          sync.Once
 }
 
 // InsertBufferConfig holds tunable parameters for the insert buffer.
@@ -210,17 +211,19 @@ func (b *InsertBuffer) Add(record *LogRecord) {
 
 // Stop flushes remaining records and waits for all writes to complete.
 func (b *InsertBuffer) Stop() {
-	close(b.done)
-	// Wait for tickLoop to finish its final drain before closing flushChan,
-	// ensuring all pending records are sent to the flush channel.
-	b.tickWg.Wait()
-	close(b.flushChan)
-	b.wg.Wait()
-	if b.journal != nil {
-		if err := b.journal.Close(); err != nil {
-			log.Printf("duckdb: journal close error: %v", err)
+	b.stopOnce.Do(func() {
+		close(b.done)
+		// Wait for tickLoop to finish its final drain before closing flushChan,
+		// ensuring all pending records are sent to the flush channel.
+		b.tickWg.Wait()
+		close(b.flushChan)
+		b.wg.Wait()
+		if b.journal != nil {
+			if err := b.journal.Close(); err != nil {
+				log.Printf("duckdb: journal close error: %v", err)
+			}
 		}
-	}
+	})
 }
 
 func (b *InsertBuffer) flushBatch(batch []journaledRecord) error {

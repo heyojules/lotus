@@ -255,3 +255,40 @@ func TestServerStopCleansSocket(t *testing.T) {
 		t.Fatal("expected dial to fail after server stop")
 	}
 }
+
+func TestStopIdempotent(t *testing.T) {
+	sockPath := filepath.Join(t.TempDir(), "idempotent.sock")
+	srv := socketrpc.NewServer(sockPath, &mockQuerier{})
+	if err := srv.Start(); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+
+	srv.Stop()
+	srv.Stop()
+}
+
+func TestStopClosesConns(t *testing.T) {
+	sockPath, srv := startTestServer(t)
+	client, err := socketrpc.Dial(sockPath)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer client.Close()
+
+	srv.Stop()
+
+	done := make(chan error, 1)
+	go func() {
+		_, callErr := client.ListApps()
+		done <- callErr
+	}()
+
+	select {
+	case callErr := <-done:
+		if callErr == nil {
+			t.Fatal("expected client call to fail after server stop")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("client call hung after server stop")
+	}
+}

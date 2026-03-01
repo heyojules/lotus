@@ -34,6 +34,7 @@ type Server struct {
 	ctx         context.Context
 	cancel      context.CancelFunc
 	wg          sync.WaitGroup
+	stopOnce    sync.Once
 }
 
 // NewServer creates a new TCP server. Default addr is "127.0.0.1:4000".
@@ -120,12 +121,14 @@ func (s *Server) handleConnection(conn net.Conn) {
 
 // Stop gracefully shuts down the TCP server.
 func (s *Server) Stop() error {
-	s.cancel()
-	if s.listener != nil {
-		s.listener.Close()
-	}
-	s.wg.Wait()
-	close(s.lineChan)
+	s.stopOnce.Do(func() {
+		s.cancel()
+		if s.listener != nil {
+			s.listener.Close()
+		}
+		s.wg.Wait()
+		close(s.lineChan)
+	})
 	return nil
 }
 
