@@ -22,7 +22,7 @@ func (m *DashboardModel) contentWidth() int {
 // renderDashboard and visibleLogLines share a single source of truth.
 func (m *DashboardModel) layoutHeights() (decksHeight, filterHeight, logsHeight int) {
 	statusLineHeight := 1
-	usableHeight := m.height - statusLineHeight - 2
+	usableHeight := m.height - statusLineHeight
 
 	filterHeight = 0
 	if m.hasFilterOrSearch() {
@@ -74,7 +74,7 @@ func (m *DashboardModel) renderDashboard() string {
 
 	// No decks: show placeholder (Metrics, Analytics, etc.).
 	if len(m.decks) == 0 {
-		placeholderHeight := m.height - statusLineHeight - 2
+		placeholderHeight := m.height - statusLineHeight
 		placeholder := renderEmptyPagePlaceholder(m.currentPageTitle(), contentWidth, placeholderHeight)
 
 		statusLine := m.renderStatusLine()

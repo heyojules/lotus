@@ -300,7 +300,7 @@ func NewDashboardModel(maxLogBuffer int, updateInterval time.Duration, reverseSc
 			sidebarVisible: true,
 		},
 		NavigationState: NavigationState{
-			activeSection:  SectionDecks,
+			activeSection:  SectionSidebar,
 			activeDeckIdx: 0,
 		},
 		LogViewState: LogViewState{
