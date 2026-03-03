@@ -119,13 +119,14 @@ type ViewState struct {
 
 // DeckDeps provides dependencies for deck constructors, replacing *DashboardModel.
 type DeckDeps struct {
-	Model            *DashboardModel // for decks that need full model access (e.g. ListDeck)
-	Store            model.LogQuerier
-	Drain3Manager    *Drain3Manager
-	PushCountsModal  tea.Cmd
+	Model             *DashboardModel // for decks that need full model access (e.g. ListDeck)
+	Store             model.LogQuerier
+	Drain3Manager     *Drain3Manager
+	PushCountsModal   tea.Cmd
 	PushPatternsModal tea.Cmd
-	FormatAttrModal  func(entry *AttributeEntry, maxWidth int) string
-	PushContentModal func(content string) tea.Cmd
+	PushSeverityModal tea.Cmd
+	FormatAttrModal   func(entry *AttributeEntry, maxWidth int) string
+	PushContentModal  func(content string) tea.Cmd
 }
 
 // PageSpec defines a top-level page and the views it contains.
@@ -379,6 +380,7 @@ func (m *DashboardModel) SetPages(specs []PageSpec) {
 		Drain3Manager:     m.drain3Manager,
 		PushCountsModal:   m.pushCountsModalCmd(),
 		PushPatternsModal: m.pushPatternsModalCmd(),
+		PushSeverityModal: m.pushSeverityModalCmd(),
 		FormatAttrModal:   m.formatAttributeValuesModal,
 		PushContentModal:  m.pushContentModalCmd(),
 	}
@@ -446,6 +448,13 @@ func DefaultPageSpecs() []PageSpec {
 					Title: "List",
 					Build: func(deps DeckDeps) []Deck {
 						return []Deck{NewListDeck(deps.Model)}
+					},
+				},
+				{
+					ID:    "custom",
+					Title: "Custom",
+					Build: func(deps DeckDeps) []Deck {
+						return []Deck{NewSeverityDeck(deps.PushSeverityModal)}
 					},
 				},
 			},
@@ -517,6 +526,14 @@ func (m *DashboardModel) pushCountsModalCmd() tea.Cmd {
 func (m *DashboardModel) pushPatternsModalCmd() tea.Cmd {
 	return func() tea.Msg {
 		modal := NewPatternsModal(m)
+		return ActionMsg{Action: ActionPushModal, Payload: modal}
+	}
+}
+
+// pushSeverityModalCmd returns a tea.Cmd that pushes the severity timeline modal.
+func (m *DashboardModel) pushSeverityModalCmd() tea.Cmd {
+	return func() tea.Msg {
+		modal := NewSeverityModal(m)
 		return ActionMsg{Action: ActionPushModal, Payload: modal}
 	}
 }

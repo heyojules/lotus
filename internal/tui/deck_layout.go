@@ -18,9 +18,25 @@ func (m *DashboardModel) calculateRequiredDecksHeight() int {
 
 func (m *DashboardModel) deckColumnCount() int {
 	if len(m.decks) <= 1 {
+		// If the single deck wants quarter size, use 2 columns anyway.
+		if len(m.decks) == 1 {
+			if qs, ok := m.decks[0].(QuarterSizedDeck); ok && qs.QuarterSized() {
+				return 2
+			}
+		}
 		return 1
 	}
 	return 2
+}
+
+// hasQuarterSizedDecks returns true if any deck in the current view is quarter-sized.
+func (m *DashboardModel) hasQuarterSizedDecks() bool {
+	for _, d := range m.decks {
+		if qs, ok := d.(QuarterSizedDeck); ok && qs.QuarterSized() {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *DashboardModel) deckHeight(idx int) int {
@@ -78,8 +94,13 @@ func (m *DashboardModel) deckRowHeightsFor(height int) []int {
 		return required
 	}
 
-	// Distribute height equally across rows.
+	// When quarter-sized decks exist, force at least 2 rows.
 	rows := len(required)
+	if m.hasQuarterSizedDecks() && rows < 2 {
+		rows = 2
+	}
+
+	// Distribute height equally across rows.
 	perRow := height / rows
 	if perRow < 3 {
 		perRow = 3

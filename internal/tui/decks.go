@@ -19,6 +19,12 @@ type Deck interface {
 	OnSelect(ctx ViewContext, selIdx int) tea.Cmd // returns nil or ActionMsg
 }
 
+// QuarterSizedDeck is an optional interface for decks that should render
+// in 1/4 of the screen (top-left quadrant) even when they are the only deck.
+type QuarterSizedDeck interface {
+	QuarterSized() bool
+}
+
 // TickableDeck extends Deck with independent tick lifecycle methods.
 // Decks implementing this interface get their own tick cycle, pause, and error state.
 type TickableDeck interface {
