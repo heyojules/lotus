@@ -44,3 +44,8 @@ type LogReader interface {
 type ReadAPI interface {
 	LogReader
 }
+
+// RecordSink accepts processed log records for storage.
+type RecordSink interface {
+	Add(*LogRecord)
+}

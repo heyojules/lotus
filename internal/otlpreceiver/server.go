@@ -6,19 +6,21 @@ import (
 
 	collogspb "go.opentelemetry.io/proto/otlp/collector/logs/v1"
 	"google.golang.org/grpc"
+
+	"github.com/tinytelemetry/lotus/internal/model"
 )
 
 // Server is an OTLP/gRPC log receiver.
 type Server struct {
 	addr     string
-	sink     RecordSink
+	sink     model.RecordSink
 	grpc     *grpc.Server
 	listener net.Listener
 	stopOnce sync.Once
 }
 
 // NewServer creates a new OTLP/gRPC server.
-func NewServer(addr string, sink RecordSink) *Server {
+func NewServer(addr string, sink model.RecordSink) *Server {
 	return &Server{
 		addr: addr,
 		sink: sink,

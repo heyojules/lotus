@@ -16,7 +16,7 @@ const maxJSONBufferSize = 10 * 1024 * 1024 // 10 MB
 // All methods are safe for concurrent use.
 type Processor struct {
 	mu         sync.Mutex
-	sink       RecordSink
+	sink       model.RecordSink
 	sourceName string
 
 	// JSON accumulation for multi-line JSON support
@@ -31,15 +31,9 @@ type Processor struct {
 
 func (p *Processor) Name() string { return ProcessorNameOTEL }
 
-// RecordSink accepts processed records.
-// InsertBuffer is one implementation.
-type RecordSink interface {
-	Add(*model.LogRecord)
-}
-
 // NewProcessor creates a new log processor.
 func NewProcessor(
-	sink RecordSink,
+	sink model.RecordSink,
 	sourceName string,
 ) *Processor {
 	return &Processor{

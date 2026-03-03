@@ -14,6 +14,6 @@ type EnvelopeProcessor interface {
 }
 
 // NewEnvelopeProcessor creates the OTEL processor implementation.
-func NewEnvelopeProcessor(sink RecordSink, sourceName string) EnvelopeProcessor {
+func NewEnvelopeProcessor(sink model.RecordSink, sourceName string) EnvelopeProcessor {
 	return NewProcessor(sink, sourceName)
 }

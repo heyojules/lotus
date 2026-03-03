@@ -7,15 +7,10 @@ import (
 	"github.com/tinytelemetry/lotus/internal/model"
 )
 
-// RecordSink accepts processed log records.
-type RecordSink interface {
-	Add(*model.LogRecord)
-}
-
 // logsHandler implements the OTLP LogsService gRPC server.
 type logsHandler struct {
 	collogspb.UnimplementedLogsServiceServer
-	sink RecordSink
+	sink model.RecordSink
 }
 
 // Export handles an incoming ExportLogsServiceRequest.
