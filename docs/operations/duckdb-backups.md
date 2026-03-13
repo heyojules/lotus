@@ -1,6 +1,6 @@
 # DuckDB Backup Strategy (Initial POC)
 
-This is the first production-friendly backup path for Lotus.
+This is the first production-friendly backup path for Tiny Telemetry.
 
 Default behavior:
 
@@ -9,21 +9,21 @@ Default behavior:
 
 When enabled:
 
-1. Lotus creates periodic local snapshots of the DuckDB file.
+1. Tiny Telemetry creates periodic local snapshots of the DuckDB file.
 2. Snapshots are rotated locally (`backup-keep-last`).
 3. If bucket config is present, each snapshot is uploaded to S3-compatible storage.
-   Current POC upload path uses `aws s3 cp` (AWS CLI) from the Lotus process.
+   Current POC upload path uses `aws s3 cp` (AWS CLI) from the Tiny Telemetry process.
 
 ## Configuration
 
 ```yaml
 backup-enabled: true
 backup-interval: 6h
-backup-local-dir: ~/.local/share/lotus/backups
+backup-local-dir: ~/.local/share/tiny-telemetry/backups
 backup-keep-last: 24
 
 # Optional remote upload
-backup-bucket-url: s3://my-bucket/lotus-backups
+backup-bucket-url: s3://my-bucket/tiny-telemetry-backups
 backup-s3-endpoint: s3.amazonaws.com
 backup-s3-region: us-east-1
 backup-s3-access-key: your-access-key
@@ -54,7 +54,7 @@ backup-s3-use-ssl: true
 ## Operational Checks
 
 - Ensure `backup-local-dir` has free space and permissions.
-- Watch Lotus logs for `backup:` lines (snapshot/upload/prune failures).
+- Watch Tiny Telemetry logs for `backup:` lines (snapshot/upload/prune failures).
 - Confirm objects arrive in bucket prefix.
 - Ensure `aws` CLI is available in `PATH` when remote upload is enabled.
 
@@ -66,7 +66,7 @@ backup-s3-use-ssl: true
 
 ## Next Iterations
 
-1. Add restore command (`lotus backup restore --from ...`).
+1. Add restore command (`tiny-telemetry backup restore --from ...`).
 2. Add upload retry queue and exponential backoff.
 3. Add checksum manifest file per snapshot.
 4. Add optional object lock/immutability guidance.

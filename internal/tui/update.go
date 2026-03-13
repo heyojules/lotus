@@ -3,7 +3,7 @@ package tui
 import (
 	"time"
 
-	"github.com/tinytelemetry/lotus/internal/model"
+	"github.com/tinytelemetry/tiny-telemetry/internal/model"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -31,9 +31,9 @@ func (m *DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.viewStyle = lipgloss.NewStyle().
+			Height(m.height).
 			MaxHeight(m.height).
 			MaxWidth(m.width)
-		m.initializeDecks()
 		_, _, logsH := m.layoutHeights()
 		m.clampInstructionsScroll(logsH)
 
@@ -117,12 +117,8 @@ func (m *DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.applyTickData(msg)
 		_, _, logsH := m.layoutHeights()
 		m.clampInstructionsScroll(logsH)
-		// Visibility-aware refresh: only refresh modal data when it's visible.
-		if modal := m.TopModal(); modal != nil {
-			if r, ok := modal.(Refreshable); ok {
-				r.Refresh()
-			}
-		}
+		// Modals fetch their data on open; skip synchronous Refresh here
+		// to avoid blocking the event loop with DB calls.
 		return m, nil
 
 	case DeckTickMsg:
@@ -417,13 +413,6 @@ func (m *DashboardModel) applyLogEntries(records []model.LogRecord) {
 	}
 }
 
-// initializeDecks sets up the charts based on current dimensions
-func (m *DashboardModel) initializeDecks() {
-	if m.width <= 0 || m.height <= 0 {
-		return
-	}
-
-}
 
 // updateProcessingRateStats computes processing rate from DuckDB count deltas between ticks.
 // totalCount is the pre-fetched TotalLogCount shared across the tick.

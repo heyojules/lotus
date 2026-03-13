@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/tinytelemetry/lotus/internal/model"
+	"github.com/tinytelemetry/tiny-telemetry/internal/model"
 	"github.com/gin-gonic/gin"
 )
 
@@ -17,7 +17,7 @@ type QueryStore interface {
 	model.ReadAPI
 }
 
-// Server provides an HTTP API for querying Lotus analytics.
+// Server provides an HTTP API for querying Tiny Telemetry analytics.
 type Server struct {
 	addr      string
 	store     QueryStore

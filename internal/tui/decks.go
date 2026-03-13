@@ -3,7 +3,7 @@ package tui
 import (
 	"time"
 
-	"github.com/tinytelemetry/lotus/internal/model"
+	"github.com/tinytelemetry/tiny-telemetry/internal/model"
 
 	tea "github.com/charmbracelet/bubbletea"
 )

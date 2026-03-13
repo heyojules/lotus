@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# gen_stdin_logs.sh — Generates OTEL log-record JSON lines to stdout for piping into Lotus via stdin.
-# Usage: ./tests/gen_stdin_logs.sh | ./lotus --config cmd/lotus/config.yml
+# gen_stdin_logs.sh — Generates OTEL log-record JSON lines to stdout for piping into Tiny Telemetry via stdin.
+# Usage: ./tests/gen_stdin_logs.sh | ./tiny-telemetry --config cmd/tiny-telemetry/config.yml
 # Env vars: RATE (logs/sec, default 5), DURATION (seconds, default infinite)
 
 set -euo pipefail
@@ -9,7 +9,7 @@ RATE="${RATE:-5}"
 DURATION="${DURATION:-0}"
 
 ADJECTIVES=(blazing silent cosmic rapid frozen amber golden crimson velvet nimble hollow drifting molten steady rustic polished)
-NOUNS=(falcon reef nebula piston glacier orchid beacon vortex condor sprocket tundra ember lotus cedar anvil)
+NOUNS=(falcon reef nebula piston glacier orchid beacon vortex condor sprocket tundra ember tiny-telemetry cedar anvil)
 
 HTTP_METHODS=(GET POST PUT DELETE PATCH)
 HTTP_PATHS=(/api/users /api/orders /api/products /api/auth/login /api/health /api/search /api/payments /api/settings)
@@ -59,7 +59,7 @@ for ((i = 0; i < NUM_APPS; i++)); do
 done
 
 # Log setup info to stderr so it doesn't interfere with stdout piping
-echo "Generating OTEL stdin logs (pipe into Lotus)" >&2
+echo "Generating OTEL stdin logs (pipe into Tiny Telemetry)" >&2
 echo "Apps: ${APPS[*]}" >&2
 echo "Rate: ${RATE}/sec | Duration: ${DURATION}s (0=infinite)" >&2
 echo "Press Ctrl+C to stop" >&2

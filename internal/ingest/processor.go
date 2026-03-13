@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/tinytelemetry/lotus/internal/model"
+	"github.com/tinytelemetry/tiny-telemetry/internal/model"
 )
 
 // maxJSONBufferSize is the maximum size of accumulated multi-line JSON before
@@ -103,13 +103,7 @@ func (p *Processor) processEntry(line, source string) *ProcessResult {
 		if record.Service == "unknown" && record.App != "" && record.App != "default" {
 			record.Service = record.App
 		}
-		record.Hostname = record.Attributes["host"]
-		if record.Hostname == "" {
-			record.Hostname = record.Attributes["hostname"]
-		}
-		if record.Hostname == "" {
-			record.Hostname = record.Attributes["host.name"]
-		}
+		record.Hostname = ExtractHostname(record.Attributes)
 		record.Source = source
 	}
 

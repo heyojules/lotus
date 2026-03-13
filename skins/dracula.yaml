@@ -1,6 +1,6 @@
 name: dracula
 description: Dracula theme - A dark theme with a purple accent
-author: Lotus Community
+author: Tiny Telemetry Community
 colors:
   # UI Component Colors
   primary: "#bd93f9"           # Purple primary

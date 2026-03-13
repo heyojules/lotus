@@ -1,6 +1,6 @@
-# Lotus Layered Design Docs
+# Tiny Telemetry Layered Design Docs
 
-These docs describe Lotus as four decoupled layers:
+These docs describe Tiny Telemetry as four decoupled layers:
 
 1. Ingestion plugins
 2. Processing pipeline
@@ -24,13 +24,13 @@ They are written with a simplicity-first rule:
 
 ```mermaid
 flowchart LR
-  A["Ingestion Plugins\ncmd/lotus/input_plugins.go"] --> B["Source Multiplexer\ncmd/lotus/source_mux.go"]
+  A["Ingestion Plugins\ncmd/tiny-telemetry/input_plugins.go"] --> B["Source Multiplexer\ncmd/tiny-telemetry/source_mux.go"]
   B --> C["Processing Pipeline\ninternal/ingest/processor.go"]
   C --> D["Insert Buffer\ninternal/duckdb/insert.go"]
   D --> E["DuckDB Store\ninternal/duckdb/store.go"]
   E --> F["HTTP API\ninternal/httpserver/server.go"]
   E --> G["Socket RPC\ninternal/socketrpc/server.go"]
-  G --> H["TUI Client\ncmd/lotus-tui/main.go"]
+  G --> H["TUI Client\ncmd/tiny-telemetry-tui/main.go"]
 ```
 
 ## Files

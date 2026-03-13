@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/tinytelemetry/lotus/internal/duckdb/migrate"
+	"github.com/tinytelemetry/tiny-telemetry/internal/duckdb/migrate"
 	duckdb "github.com/duckdb/duckdb-go/v2"
 )
 

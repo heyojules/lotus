@@ -3,7 +3,7 @@ package ingest
 import (
 	"testing"
 
-	"github.com/tinytelemetry/lotus/internal/model"
+	"github.com/tinytelemetry/tiny-telemetry/internal/model"
 )
 
 type recordingSink struct {

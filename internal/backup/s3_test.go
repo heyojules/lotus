@@ -24,19 +24,19 @@ func TestParseS3BucketURL(t *testing.T) {
 		},
 		{
 			name:    "bucket with prefix",
-			raw:     "s3://my-bucket/lotus/backups",
+			raw:     "s3://my-bucket/tiny-telemetry/backups",
 			wantBkt: "my-bucket",
-			wantPre: "lotus/backups",
+			wantPre: "tiny-telemetry/backups",
 		},
 		{
 			name:      "invalid scheme",
-			raw:       "https://my-bucket/lotus",
+			raw:       "https://my-bucket/tiny-telemetry",
 			wantErr:   true,
 			errSubstr: "s3:// scheme",
 		},
 		{
 			name:      "missing bucket",
-			raw:       "s3:///lotus",
+			raw:       "s3:///tiny-telemetry",
 			wantErr:   true,
 			errSubstr: "missing bucket",
 		},
@@ -73,7 +73,7 @@ func TestNewS3Uploader_MissingCredentials(t *testing.T) {
 	t.Parallel()
 
 	_, err := NewS3Uploader(S3Config{
-		BucketURL: "s3://my-bucket/lotus",
+		BucketURL: "s3://my-bucket/tiny-telemetry",
 		Endpoint:  "s3.amazonaws.com",
 		UseSSL:    true,
 	})

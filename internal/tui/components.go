@@ -8,18 +8,27 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// renderLotusBranding renders "Lotus!" with a green to light blue gradient
-func (m *DashboardModel) renderLotusBranding() string {
+// renderBranding renders "Tiny Telemetry!" with a green to light blue gradient
+func (m *DashboardModel) renderBranding() string {
 	colors := []string{
-		"#49E209", // Green (L)
-		"#35DD2F", // (o)
-		"#21D955", // (t)
-		"#0DD47B", // (u)
-		"#00D0A1", // (s)
-		"#00CAC7", // (!)
+		"#49E209", // T
+		"#44E017", // i
+		"#3FDF24", // n
+		"#39DD32", // y
+		"#34DB3F", // (space)
+		"#2FDA4D", // T
+		"#2AD85A", // e
+		"#24D668", // l
+		"#1FD575", // e
+		"#1AD383", // m
+		"#15D190", // e
+		"#10D09E", // t
+		"#0ACEAB", // r
+		"#05CCB9", // y
+		"#00CAC7", // !
 	}
 
-	chars := []string{"L", "o", "t", "u", "s", "!"}
+	chars := []string{"T", "i", "n", "y", " ", "T", "e", "l", "e", "m", "e", "t", "r", "y", "!"}
 
 	var result string
 	for i, char := range chars {
@@ -195,7 +204,7 @@ func (m *DashboardModel) renderStatusLine() string {
 		rightParts = append(rightParts, versionUpdateInfo)
 	}
 	if w >= 30 {
-		rightParts = append(rightParts, m.renderLotusBranding())
+		rightParts = append(rightParts, m.brandingCache)
 	}
 
 	if len(rightParts) > 0 {
@@ -401,9 +410,9 @@ func (m *DashboardModel) renderLogScrollContent(height int, logWidth int) []stri
 			"Waiting for log entries...",
 			"",
 			"💡 To get started:",
-			"  • Pipe logs: cat mylog.json | lotus",
-			"  • Stream logs: kubectl logs -f pod | lotus",
-			"  • From file: lotus -f application.log -f other.log -f 'dir/*.globlog'",
+			"  • Pipe logs: cat mylog.json | tiny-telemetry",
+			"  • Stream logs: kubectl logs -f pod | tiny-telemetry",
+			"  • From file: tiny-telemetry -f application.log -f other.log -f 'dir/*.globlog'",
 			"",
 		}
 

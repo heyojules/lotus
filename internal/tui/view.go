@@ -2,10 +2,8 @@ package tui
 
 import (
 	"strings"
-	"time"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/mattn/go-runewidth"
 )
 
 // contentWidth returns the width available for main content, accounting for sidebar.
@@ -52,17 +50,16 @@ func (m *DashboardModel) View() string {
 		return "Initializing dashboard..."
 	}
 
-	base := m.renderDashboard()
-
-	// If a modal is on the stack, overlay it on the dashboard.
+	// If a modal is on the stack, render it centered (no broken ANSI overlay).
 	if modal := m.TopModal(); modal != nil {
 		fg := modal.View(m.width, m.height)
-		x := (m.width - lipgloss.Width(fg)) / 2
-		y := (m.height - lipgloss.Height(fg)) / 3
-		return placeOverlay(x, y, fg, base)
+		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, fg,
+			lipgloss.WithWhitespaceChars(" "),
+		)
 	}
 
-	return base
+	base := m.renderDashboard()
+	return pinHeight(base, m.width, m.height)
 }
 
 // renderDashboard renders the main dashboard layout
@@ -103,20 +100,6 @@ func (m *DashboardModel) renderDashboard() string {
 	// Decks grid.
 	if decksHeight > 0 {
 		topSection := m.renderDecksGrid(contentWidth, decksHeight)
-
-		// View flash overlay: show title briefly after view switch.
-		if m.viewFlashTitle != "" && time.Now().Before(m.viewFlashExpiry) {
-			flashStyle := lipgloss.NewStyle().
-				Bold(true).
-				Foreground(ColorBlue).
-				Align(lipgloss.Center)
-			flashText := flashStyle.Render("[ " + m.viewFlashTitle + " ]")
-			topSection = lipgloss.Place(contentWidth, decksHeight, lipgloss.Center, lipgloss.Center, flashText,
-				lipgloss.WithWhitespaceChars(" "),
-				lipgloss.WithWhitespaceForeground(lipgloss.Color("0")),
-			)
-		}
-
 		sections = append(sections, topSection)
 	}
 
@@ -167,46 +150,17 @@ func renderEmptyPagePlaceholder(title string, width, height int) string {
 	return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, block)
 }
 
-// placeOverlay places fg on top of bg at position (x, y), replacing background
-// characters with the foreground content.
-func placeOverlay(x, y int, fg, bg string) string {
-	fgLines := strings.Split(fg, "\n")
-	bgLines := strings.Split(bg, "\n")
-
-	if x < 0 {
-		x = 0
+// pinHeight ensures the rendered output is exactly `height` lines tall,
+// padding with blank lines or truncating as needed. This prevents flickering
+// in BubbleTea's alt-screen renderer which expects consistent frame height.
+func pinHeight(content string, width, height int) string {
+	lines := strings.Split(content, "\n")
+	if len(lines) > height {
+		lines = lines[:height]
 	}
-	if y < 0 {
-		y = 0
+	blank := strings.Repeat(" ", width)
+	for len(lines) < height {
+		lines = append(lines, blank)
 	}
-
-	for i, fgLine := range fgLines {
-		bgIdx := y + i
-		if bgIdx >= len(bgLines) {
-			break
-		}
-
-		bgLine := bgLines[bgIdx]
-
-		// Build: bgLine[:x] + fgLine + bgLine[x+fgWidth:]
-		bgRunes := []rune(bgLine)
-		fgWidth := runewidth.StringWidth(lipgloss.NewStyle().Render(fgLine))
-
-		var left string
-		if x <= len(bgRunes) {
-			left = string(bgRunes[:x])
-		} else {
-			left = string(bgRunes) + strings.Repeat(" ", x-len(bgRunes))
-		}
-
-		var right string
-		rightStart := x + fgWidth
-		if rightStart < len(bgRunes) {
-			right = string(bgRunes[rightStart:])
-		}
-
-		bgLines[bgIdx] = left + fgLine + right
-	}
-
-	return strings.Join(bgLines, "\n")
+	return strings.Join(lines, "\n")
 }

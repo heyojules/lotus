@@ -1,13 +1,14 @@
 package otlpreceiver
 
 import (
+	"log"
 	"net"
 	"sync"
 
 	collogspb "go.opentelemetry.io/proto/otlp/collector/logs/v1"
 	"google.golang.org/grpc"
 
-	"github.com/tinytelemetry/lotus/internal/model"
+	"github.com/tinytelemetry/tiny-telemetry/internal/model"
 )
 
 // Server is an OTLP/gRPC log receiver.
@@ -35,10 +36,16 @@ func (s *Server) Start() error {
 	}
 	s.listener = ln
 
-	s.grpc = grpc.NewServer()
+	s.grpc = grpc.NewServer(
+		grpc.MaxRecvMsgSize(16 << 20), // 16 MB for large OTLP batches
+	)
 	collogspb.RegisterLogsServiceServer(s.grpc, &logsHandler{sink: s.sink})
 
-	go s.grpc.Serve(ln)
+	go func() {
+		if err := s.grpc.Serve(ln); err != nil {
+			log.Printf("otlpreceiver: grpc.Serve exited: %v", err)
+		}
+	}()
 
 	return nil
 }

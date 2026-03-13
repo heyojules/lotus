@@ -63,15 +63,15 @@ type RPCError struct {
 func (e *RPCError) Error() string { return e.Message }
 
 // DefaultSocketPath returns the default Unix socket path.
-// It prefers $XDG_RUNTIME_DIR/lotus/lotus.sock, falling back to
-// ~/.config/lotus/lotus.sock.
+// It prefers $XDG_RUNTIME_DIR/tiny-telemetry/tiny-telemetry.sock, falling back to
+// ~/.config/tiny-telemetry/tiny-telemetry.sock.
 func DefaultSocketPath() string {
 	if dir := os.Getenv("XDG_RUNTIME_DIR"); dir != "" {
-		return filepath.Join(dir, "lotus", "lotus.sock")
+		return filepath.Join(dir, "tiny-telemetry", "tiny-telemetry.sock")
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return "/tmp/lotus.sock"
+		return "/tmp/tiny-telemetry.sock"
 	}
-	return filepath.Join(home, ".local", "state", "lotus", "lotus.sock")
+	return filepath.Join(home, ".local", "state", "tiny-telemetry", "tiny-telemetry.sock")
 }

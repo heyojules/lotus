@@ -9,16 +9,20 @@ import (
 
 var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 
-// renderLoadingPlaceholder renders an animated loading indicator.
-// The frame is selected based on the current time so it animates on re-render.
-func renderLoadingPlaceholder(width, height int) string {
-	frame := spinnerFrames[time.Now().UnixMilli()/120%int64(len(spinnerFrames))]
+// renderLoadingPlaceholder renders a loading indicator using a model-driven
+// frame index. The frame MUST come from model state (spinnerFrame), not from
+// time.Now(), so that View() remains a pure function of the model.
+func renderLoadingPlaceholder(width, height, frame int) string {
+	idx := frame % len(spinnerFrames)
+	if idx < 0 {
+		idx = 0
+	}
 
 	loadingStyle := lipgloss.NewStyle().
 		Foreground(ColorGray).
 		Italic(true)
 
-	text := loadingStyle.Render(frame + " Loading...")
+	text := loadingStyle.Render(spinnerFrames[idx] + " Loading...")
 
 	return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, text)
 }
@@ -26,10 +30,13 @@ func renderLoadingPlaceholder(width, height int) string {
 // SpinnerTickMsg triggers a re-render for loading spinners.
 type SpinnerTickMsg struct{}
 
-// handleSpinnerTick re-schedules spinner ticks while any deck is loading.
+const spinnerInterval = 300 * time.Millisecond
+
+// handleSpinnerTick advances the spinner frame and re-schedules while loading.
 func (m *DashboardModel) handleSpinnerTick() (tea.Model, tea.Cmd) {
+	m.spinnerFrame++
 	if m.anyDeckLoading() {
-		return m, tea.Tick(120*time.Millisecond, func(_ time.Time) tea.Msg {
+		return m, tea.Tick(spinnerInterval, func(_ time.Time) tea.Msg {
 			return SpinnerTickMsg{}
 		})
 	}
@@ -49,7 +56,7 @@ func (m *DashboardModel) anyDeckLoading() bool {
 // startSpinnerIfNeeded schedules a spinner tick if any deck is loading.
 func (m *DashboardModel) startSpinnerIfNeeded() tea.Cmd {
 	if m.anyDeckLoading() {
-		return tea.Tick(120*time.Millisecond, func(_ time.Time) tea.Msg {
+		return tea.Tick(spinnerInterval, func(_ time.Time) tea.Msg {
 			return SpinnerTickMsg{}
 		})
 	}

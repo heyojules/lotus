@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Generates OTEL JSON log lines to stdout for testing the TUI.
-# Usage: ./scripts/mockdata.sh | ./build/lotus
+# Usage: ./scripts/mockdata.sh | ./build/tiny-telemetry
 #   or:  ./scripts/mockdata.sh --stream   (continuous, ~5 lines/sec)
 #   or:  ./scripts/mockdata.sh --stream --lps 50
 

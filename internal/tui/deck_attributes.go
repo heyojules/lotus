@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tinytelemetry/lotus/internal/model"
+	"github.com/tinytelemetry/tiny-telemetry/internal/model"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -100,7 +100,7 @@ func (p *AttributesDeck) Render(ctx ViewContext, width, height int, active bool,
 	if len(p.data) > 0 {
 		content = p.renderContent(ctx, width, contentLines, selIdx, active)
 	} else if ctx.DeckLoading {
-		content = renderLoadingPlaceholder(width-2, contentLines)
+		content = renderLoadingPlaceholder(width-2, contentLines, ctx.SpinnerFrame)
 	} else {
 		content = helpStyle.Render("No data available")
 	}

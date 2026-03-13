@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tinytelemetry/lotus/internal/model"
+	"github.com/tinytelemetry/tiny-telemetry/internal/model"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -79,7 +79,7 @@ func (p *PatternsDeck) Render(ctx ViewContext, width, height int, active bool, _
 	if p.drain3Manager != nil && patternCount > 0 {
 		content = p.renderContent(width, contentLines)
 	} else if ctx.DeckLoading {
-		content = renderLoadingPlaceholder(width-2, contentLines)
+		content = renderLoadingPlaceholder(width-2, contentLines, ctx.SpinnerFrame)
 	} else {
 		content = helpStyle.Render("Extracting patterns")
 	}

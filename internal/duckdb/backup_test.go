@@ -10,7 +10,7 @@ import (
 func TestSnapshotTo_CreatesBackupFile(t *testing.T) {
 	t.Parallel()
 
-	dbPath := filepath.Join(t.TempDir(), "lotus.duckdb")
+	dbPath := filepath.Join(t.TempDir(), "tiny-telemetry.duckdb")
 	store, err := NewStore(dbPath)
 	if err != nil {
 		t.Fatalf("NewStore: %v", err)

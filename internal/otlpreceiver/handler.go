@@ -4,7 +4,9 @@ import (
 	"context"
 
 	collogspb "go.opentelemetry.io/proto/otlp/collector/logs/v1"
-	"github.com/tinytelemetry/lotus/internal/model"
+
+	"github.com/tinytelemetry/tiny-telemetry/internal/ingest"
+	"github.com/tinytelemetry/tiny-telemetry/internal/model"
 )
 
 // logsHandler implements the OTLP LogsService gRPC server.
@@ -14,14 +16,13 @@ type logsHandler struct {
 }
 
 // Export handles an incoming ExportLogsServiceRequest.
-func (h *logsHandler) Export(_ context.Context, req *collogspb.ExportLogsServiceRequest) (*collogspb.ExportLogsServiceResponse, error) {
+func (h *logsHandler) Export(ctx context.Context, req *collogspb.ExportLogsServiceRequest) (*collogspb.ExportLogsServiceResponse, error) {
 	for _, rl := range req.GetResourceLogs() {
 		resourceAttrs := extractResourceAttrs(rl.GetResource())
 
 		for _, sl := range rl.GetScopeLogs() {
-			scopeAttrs := cloneAttrs(resourceAttrs)
+			scopeAttrs := ingest.CloneAttributes(resourceAttrs)
 
-			// Merge scope-level attributes
 			if scope := sl.GetScope(); scope != nil {
 				if scope.Name != "" {
 					scopeAttrs["otel.scope.name"] = scope.Name
@@ -33,6 +34,9 @@ func (h *logsHandler) Export(_ context.Context, req *collogspb.ExportLogsService
 			}
 
 			for _, lr := range sl.GetLogRecords() {
+				if err := ctx.Err(); err != nil {
+					return nil, err
+				}
 				record := convertLogRecord(lr, scopeAttrs)
 				h.sink.Add(record)
 			}

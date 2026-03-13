@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/tinytelemetry/lotus/internal/model"
+	"github.com/tinytelemetry/tiny-telemetry/internal/model"
 )
 
 const (

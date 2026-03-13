@@ -1,6 +1,6 @@
 name: github-light
 description: GitHub Light - Clean and bright theme inspired by GitHub's light mode
-author: Lotus Community
+author: Tiny Telemetry Community
 colors:
   # UI Component Colors
   primary: "#0969da"           # Primary blue for highlights

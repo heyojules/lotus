@@ -1,6 +1,6 @@
 # Build output
 build/
-lotus
+tiny-telemetry
 
 # IDE and editor files
 .idea/

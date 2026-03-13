@@ -10,7 +10,7 @@ RATE="${RATE:-5}"
 DURATION="${DURATION:-0}"
 
 ADJECTIVES=(blazing silent cosmic rapid frozen amber golden crimson velvet nimble hollow drifting molten steady rustic polished)
-NOUNS=(falcon reef nebula piston glacier orchid beacon vortex condor sprocket tundra ember lotus cedar anvil)
+NOUNS=(falcon reef nebula piston glacier orchid beacon vortex condor sprocket tundra ember tiny-telemetry cedar anvil)
 
 HTTP_METHODS=(GET POST PUT DELETE PATCH)
 HTTP_PATHS=(/api/users /api/orders /api/products /api/auth/login /api/auth/refresh /api/health /api/search /api/payments /api/notifications /api/settings)
@@ -99,7 +99,7 @@ START_TIME=$(date +%s)
 COUNT=0
 
 # Use a persistent TCP connection via a named pipe (FIFO)
-FIFO=$(mktemp -u /tmp/lotus_tcp_XXXXXX)
+FIFO=$(mktemp -u /tmp/tiny_telemetry_tcp_XXXXXX)
 mkfifo "$FIFO"
 
 cleanup_fifo() {
@@ -116,7 +116,7 @@ exec 3>"$FIFO"
 # Verify connection
 sleep 0.2
 if ! kill -0 "$NC_PID" 2>/dev/null; then
-  echo "Failed to connect to localhost:${PORT}. Is Lotus running?" >&2
+  echo "Failed to connect to localhost:${PORT}. Is Tiny Telemetry running?" >&2
   exit 1
 fi
 
@@ -136,7 +136,7 @@ while true; do
     NC_PID=$!
     sleep 0.2
     if ! kill -0 "$NC_PID" 2>/dev/null; then
-      echo "Failed to reconnect. Is Lotus running?" >&2
+      echo "Failed to reconnect. Is Tiny Telemetry running?" >&2
       sleep 2
       continue
     fi

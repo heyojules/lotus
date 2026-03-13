@@ -46,15 +46,15 @@ type blackboxServer struct {
 }
 
 var (
-	lotusBuildOnce sync.Once
-	lotusBinPath   string
-	lotusBuildErr  error
+	binBuildOnce sync.Once
+	binPath   string
+	binBuildErr  error
 )
 
 func TestBlackBox_ReplaysPreseededJournal(t *testing.T) {
 	baseDir := t.TempDir()
 	cfg := blackboxConfig{
-		DBPath:              filepath.Join(baseDir, "lotus.duckdb"),
+		DBPath:              filepath.Join(baseDir, "tiny-telemetry.duckdb"),
 		JournalPath:         filepath.Join(baseDir, "ingest.journal"),
 		JournalEnabled:      true,
 		InsertBatchSize:     64,
@@ -71,7 +71,7 @@ func TestBlackBox_ReplaysPreseededJournal(t *testing.T) {
 func TestBlackBox_ReplaySkipsCommittedPrefix(t *testing.T) {
 	baseDir := t.TempDir()
 	cfg := blackboxConfig{
-		DBPath:              filepath.Join(baseDir, "lotus.duckdb"),
+		DBPath:              filepath.Join(baseDir, "tiny-telemetry.duckdb"),
 		JournalPath:         filepath.Join(baseDir, "ingest.journal"),
 		JournalEnabled:      true,
 		InsertBatchSize:     64,
@@ -89,7 +89,7 @@ func TestBlackBox_ReplaySkipsCommittedPrefix(t *testing.T) {
 func TestBlackBox_JournalToggleBehavior(t *testing.T) {
 	baseDir := t.TempDir()
 	enabledCfg := blackboxConfig{
-		DBPath:              filepath.Join(baseDir, "lotus.duckdb"),
+		DBPath:              filepath.Join(baseDir, "tiny-telemetry.duckdb"),
 		JournalPath:         filepath.Join(baseDir, "ingest.journal"),
 		JournalEnabled:      true,
 		InsertBatchSize:     64,
@@ -108,7 +108,7 @@ func TestBlackBox_JournalToggleBehavior(t *testing.T) {
 	srv1.Kill(t)
 
 	disabledCfg := blackboxConfig{
-		DBPath:              filepath.Join(baseDir, "lotus-nojournal.duckdb"),
+		DBPath:              filepath.Join(baseDir, "tiny-telemetry-nojournal.duckdb"),
 		JournalPath:         filepath.Join(baseDir, "ingest-disabled.journal"),
 		JournalEnabled:      false,
 		InsertBatchSize:     64,
@@ -131,7 +131,7 @@ func startBlackboxServer(t *testing.T, cfg blackboxConfig) *blackboxServer {
 	repoRoot := findRepoRoot(t)
 	apiPort := freeTCPPort(t)
 	grpcPort := freeTCPPort(t)
-	socketPath := filepath.Join(filepath.Dir(cfg.DBPath), fmt.Sprintf("lotus-%d.sock", time.Now().UnixNano()))
+	socketPath := filepath.Join(filepath.Dir(cfg.DBPath), fmt.Sprintf("tiny-telemetry-%d.sock", time.Now().UnixNano()))
 
 	configPath := filepath.Join(filepath.Dir(cfg.DBPath), fmt.Sprintf("config-%d.yml", time.Now().UnixNano()))
 	configBody := fmt.Sprintf(`host: 127.0.0.1
@@ -154,12 +154,12 @@ backup-enabled: false
 	}
 
 	var out bytes.Buffer
-	cmd := exec.Command(lotusBinary(t), "--config", configPath)
+	cmd := exec.Command(buildBinary(t), "--config", configPath)
 	cmd.Dir = repoRoot
 	cmd.Stdout = &out
 	cmd.Stderr = &out
 	if err := cmd.Start(); err != nil {
-		t.Fatalf("start lotus process: %v", err)
+		t.Fatalf("start tiny-telemetry process: %v", err)
 	}
 
 	srv := &blackboxServer{
@@ -175,7 +175,7 @@ backup-enabled: false
 
 	waitEventually(t, 20*time.Second, 50*time.Millisecond, func() bool {
 		if exited, err := srv.pollExited(); exited {
-			t.Fatalf("lotus exited before ready: %v\n%s", err, srv.output.String())
+			t.Fatalf("tiny-telemetry exited before ready: %v\n%s", err, srv.output.String())
 		}
 		resp, err := http.Get("http://" + srv.apiAddr + "/api/health")
 		if err != nil {
@@ -183,7 +183,7 @@ backup-enabled: false
 		}
 		defer resp.Body.Close()
 		return resp.StatusCode == http.StatusOK
-	}, "lotus api failed to become ready")
+	}, "tiny-telemetry api failed to become ready")
 
 	t.Cleanup(func() {
 		if exited, _ := srv.pollExited(); exited {
@@ -196,31 +196,31 @@ backup-enabled: false
 	return srv
 }
 
-func lotusBinary(t *testing.T) string {
+func buildBinary(t *testing.T) string {
 	t.Helper()
-	lotusBuildOnce.Do(func() {
+	binBuildOnce.Do(func() {
 		repoRoot := findRepoRoot(t)
-		tmpDir, err := os.MkdirTemp("", "lotus-blackbox-bin-*")
+		tmpDir, err := os.MkdirTemp("", "tiny-telemetry-blackbox-bin-*")
 		if err != nil {
-			lotusBuildErr = fmt.Errorf("mktemp bin dir: %w", err)
+			binBuildErr = fmt.Errorf("mktemp bin dir: %w", err)
 			return
 		}
-		lotusBinPath = filepath.Join(tmpDir, "lotus")
+		binPath = filepath.Join(tmpDir, "tiny-telemetry")
 
-		cmd := exec.Command("go", "build", "-o", lotusBinPath, "./cmd/lotus")
+		cmd := exec.Command("go", "build", "-o", binPath, "./cmd/tiny-telemetry")
 		cmd.Dir = repoRoot
 		var out bytes.Buffer
 		cmd.Stdout = &out
 		cmd.Stderr = &out
 		if err := cmd.Run(); err != nil {
-			lotusBuildErr = fmt.Errorf("build lotus binary: %w\n%s", err, out.String())
+			binBuildErr = fmt.Errorf("build tiny-telemetry binary: %w\n%s", err, out.String())
 			return
 		}
 	})
-	if lotusBuildErr != nil {
-		t.Fatalf("%v", lotusBuildErr)
+	if binBuildErr != nil {
+		t.Fatalf("%v", binBuildErr)
 	}
-	return lotusBinPath
+	return binPath
 }
 
 func (s *blackboxServer) Kill(t *testing.T) {

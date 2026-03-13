@@ -24,11 +24,11 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/tinytelemetry/lotus/internal/duckdb"
-	"github.com/tinytelemetry/lotus/internal/httpserver"
-	"github.com/tinytelemetry/lotus/internal/model"
-	"github.com/tinytelemetry/lotus/internal/otlpreceiver"
-	"github.com/tinytelemetry/lotus/internal/socketrpc"
+	"github.com/tinytelemetry/tiny-telemetry/internal/duckdb"
+	"github.com/tinytelemetry/tiny-telemetry/internal/httpserver"
+	"github.com/tinytelemetry/tiny-telemetry/internal/model"
+	"github.com/tinytelemetry/tiny-telemetry/internal/otlpreceiver"
+	"github.com/tinytelemetry/tiny-telemetry/internal/socketrpc"
 )
 
 type e2eConfig struct {
@@ -68,7 +68,7 @@ func startE2EStack(t *testing.T, cfg e2eConfig) *e2eStack {
 		cfg.InsertFlushQueueSize = 128
 	}
 
-	dbPath := filepath.Join(t.TempDir(), "lotus-e2e.duckdb")
+	dbPath := filepath.Join(t.TempDir(), "tiny-telemetry-e2e.duckdb")
 	store, err := duckdb.NewStore(dbPath, 5*time.Second)
 	if err != nil {
 		t.Fatalf("NewStore: %v", err)
@@ -86,7 +86,7 @@ func startE2EStack(t *testing.T, cfg e2eConfig) *e2eStack {
 		t.Fatalf("http Start: %v", err)
 	}
 
-	sock := filepath.Join(os.TempDir(), fmt.Sprintf("lotus-e2e-%d.sock", time.Now().UnixNano()))
+	sock := filepath.Join(os.TempDir(), fmt.Sprintf("tiny-telemetry-e2e-%d.sock", time.Now().UnixNano()))
 	socket := socketrpc.NewServer(sock, store)
 	if err := socket.Start(); err != nil {
 		t.Fatalf("socket Start: %v", err)

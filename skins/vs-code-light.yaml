@@ -1,6 +1,6 @@
 name: vs-code-light
 description: VS Code Light - Clean professional theme based on VS Code's default light theme
-author: Lotus Community
+author: Tiny Telemetry Community
 colors:
   # UI Component Colors
   primary: "#005cc5"           # VS Code blue

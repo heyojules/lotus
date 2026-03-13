@@ -216,7 +216,10 @@ func (m *DashboardModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	// Grid-aware deck navigation (2-column layout)
+	// Grid-aware deck navigation (2-column layout).
+	// Spatial: Left/Right/Up/Down move naturally within the grid.
+	// Left at the left edge → sidebar (if visible). Right at the right edge → stop.
+	// Views are switched with [] keys, not arrow keys.
 	if m.activeSection == SectionDecks {
 		cols := m.deckColumnCount()
 		col := m.activeDeckIdx % cols
@@ -224,10 +227,6 @@ func (m *DashboardModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, k.Right):
 			if col < cols-1 && m.activeDeckIdx+1 < len(m.decks) {
 				m.activeDeckIdx++
-			} else {
-				cmd := m.nextView()
-				m.activeDeckIdx = 0
-				return m, cmd
 			}
 			return m, nil
 		case key.Matches(msg, k.Left):
@@ -235,10 +234,6 @@ func (m *DashboardModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.activeDeckIdx--
 			} else if m.sidebarVisible {
 				m.activeSection = SectionSidebar
-			} else {
-				cmd := m.prevView()
-				m.activeDeckIdx = max(0, len(m.decks)-1)
-				return m, cmd
 			}
 			return m, nil
 		case key.Matches(msg, k.Down):

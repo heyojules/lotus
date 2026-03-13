@@ -1,6 +1,6 @@
 package ingest
 
-import "github.com/tinytelemetry/lotus/internal/model"
+import "github.com/tinytelemetry/tiny-telemetry/internal/model"
 
 const (
 	// ProcessorNameOTEL is the single processor implementation name.

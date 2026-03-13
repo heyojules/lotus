@@ -1,7 +1,7 @@
-BINARY := lotus
-BINARY_CLI := lotus-tui
-CMD := ./cmd/lotus
-CMD_CLI := ./cmd/lotus-tui
+BINARY := tiny-telemetry
+BINARY_CLI := tiny-telemetry-tui
+CMD := ./cmd/tiny-telemetry
+CMD_CLI := ./cmd/tiny-telemetry-tui
 BUILD_DIR := ./build
 OUT := $(BUILD_DIR)/$(BINARY)
 OUT_CLI := $(BUILD_DIR)/$(BINARY_CLI)
@@ -12,13 +12,13 @@ BUILD_TIME := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 GO_VERSION := $(shell go version | cut -d' ' -f3)
 LDFLAGS := -ldflags "-s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.buildTime=$(BUILD_TIME) -X main.goVersion=$(GO_VERSION)"
 
-DB_PATH := $(HOME)/.local/share/lotus/lotus.duckdb
+DB_PATH := $(HOME)/.local/share/tiny-telemetry/tiny-telemetry.duckdb
 
-.PHONY: build build-lotus build-cli run run-cli dev test clean prune
+.PHONY: build build-server build-cli run run-cli dev test clean prune
 
-build: build-lotus build-cli
+build: build-server build-cli
 
-build-lotus:
+build-server:
 	@mkdir -p $(BUILD_DIR)
 	@go build -trimpath $(LDFLAGS) -o $(OUT) $(CMD)
 	@echo "built $(OUT)"
@@ -28,17 +28,17 @@ build-cli:
 	@go build -trimpath $(LDFLAGS) -o $(OUT_CLI) $(CMD_CLI)
 	@echo "built $(OUT_CLI)"
 
-run: build-lotus
-	@$(OUT) --config ./cmd/lotus/config.yml
+run: build-server
+	@$(OUT) --config ./cmd/tiny-telemetry/config.yml
 
 run-cli: build-cli
 	@$(OUT_CLI)
 
 dev: build
-	@$(OUT) --config ./cmd/lotus/config.yml & LOTUS_PID=$$!; \
+	@$(OUT) --config ./cmd/tiny-telemetry/config.yml & TT_PID=$$!; \
 	sleep 1; \
 	$(OUT_CLI); \
-	kill $$LOTUS_PID 2>/dev/null; wait $$LOTUS_PID 2>/dev/null
+	kill $$TT_PID 2>/dev/null; wait $$TT_PID 2>/dev/null
 
 test:
 	@go test ./...

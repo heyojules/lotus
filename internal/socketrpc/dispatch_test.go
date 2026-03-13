@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tinytelemetry/lotus/internal/model"
+	"github.com/tinytelemetry/tiny-telemetry/internal/model"
 )
 
 // stubQuerier returns fixed values for dispatch unit testing.

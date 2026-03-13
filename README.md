@@ -14,7 +14,7 @@
 
 ## Why Tiny Telemetry exists
 
-Tiny Telemetry is a thin layer that ingests telemetry/analytics, stores them in DuckDB, and exposes a read-only HTTP API queryable by AI agents and scripts. A TUI dashboard (`Tiny Telemetry-tui`) is included for humans, organized into pages (Logs, Metrics, Analytics) with switchable views within each page.
+Tiny Telemetry is a thin layer that ingests telemetry/analytics, stores them in DuckDB, and exposes a read-only HTTP API queryable by AI agents and scripts. A TUI dashboard (`tiny-telemetry-tui`) is included for humans, organized into pages (Logs, Metrics, Analytics) with switchable views within each page.
 
 
 **Design principles:**
@@ -37,7 +37,7 @@ Input Plugins          Processing              Storage              Read Surface
               ├──→  │  + parser   │──→     │  DuckDB   │──→     │  (agents, scripts)
   stdin     ──┘     │             │        │           │        └──────────────
      ↑              └─────────────┘        │           │        ┌─ Socket RPC
-     │                    ↓                │           │──→     │  (Tiny Telemetry-tui)
+     │                    ↓                │           │──→     │  (tiny-telemetry-tui)
   SourceMux          InsertBuffer          │           │        └──────────────
                     (batch append)         └───────────┘
 ```
@@ -50,7 +50,7 @@ Tiny Telemetry ships with 12 color themes:
 skin: dracula
 ```
 
-Available: `Tiny Telemetry-dark`, `Tiny Telemetry-light`, `dracula`, `github-light`, `gruvbox`, `matrix`, `monokai`, `nord`, `solarized-dark`, `solarized-light`, `spring`, `vs-code-light`.
+Available: `tiny-telemetry-dark`, `tiny-telemetry-light`, `dracula`, `github-light`, `gruvbox`, `matrix`, `monokai`, `nord`, `solarized-dark`, `solarized-light`, `spring`, `vs-code-light`.
 
 ## Screenshots
 

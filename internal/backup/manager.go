@@ -118,7 +118,7 @@ func (m *Manager) loop() {
 // RunOnce creates one local snapshot, uploads it when configured, and prunes old local copies.
 func (m *Manager) RunOnce(ctx context.Context) error {
 	timestamp := strings.ReplaceAll(time.Now().UTC().Format("20060102-150405.000000000"), ".", "-")
-	fileName := fmt.Sprintf("lotus-%s.duckdb", timestamp)
+	fileName := fmt.Sprintf("tiny-telemetry-%s.duckdb", timestamp)
 	localPath := filepath.Join(m.cfg.LocalDir, fileName)
 
 	if err := m.store.SnapshotTo(localPath); err != nil {
@@ -157,7 +157,7 @@ func pruneLocalBackups(localDir string, keepLast int) error {
 		return nil
 	}
 
-	matches, err := filepath.Glob(filepath.Join(localDir, "lotus-*.duckdb"))
+	matches, err := filepath.Glob(filepath.Join(localDir, "tiny-telemetry-*.duckdb"))
 	if err != nil {
 		return err
 	}

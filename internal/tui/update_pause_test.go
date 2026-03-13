@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tinytelemetry/lotus/internal/model"
+	"github.com/tinytelemetry/tiny-telemetry/internal/model"
 )
 
 type countingStore struct {

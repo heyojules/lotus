@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/tinytelemetry/lotus/internal/model"
+	"github.com/tinytelemetry/tiny-telemetry/internal/model"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -208,12 +208,18 @@ type DashboardModel struct {
 	lastTickAt        time.Time // when the last successful tick completed
 	consecutiveErrors int       // count of consecutive ticks with errors
 
+	// Spinner animation frame (incremented by SpinnerTickMsg, used by View).
+	spinnerFrame int
+
 	// Per-panel-type tick/pause/error tracking.
 	deckStates map[string]*DeckTypeState
 
 	// DuckDB read primitives used by the TUI.
 	store      model.LogQuerier
 	dataSource string // "Socket" or "DuckDB" — shown in status bar
+
+	// Cached branding string (computed once, never changes).
+	brandingCache string
 
 	// Version update info (decoupled from version package)
 	versionInfo *VersionInfo
@@ -332,6 +338,7 @@ func NewDashboardModel(maxLogBuffer int, updateInterval time.Duration, reverseSc
 		dataSource:  dataSource,
 	}
 
+	m.brandingCache = m.renderBranding()
 	m.SetPages(DefaultPageSpecs())
 
 	// Register inline handlers for filter/search input (NOT modals).
@@ -621,8 +628,7 @@ func (m *DashboardModel) activateView(idx int) {
 	}
 	pg.ActiveViewIdx = idx
 	vw := &pg.Views[idx]
-	m.viewFlashTitle = vw.Title
-	m.viewFlashExpiry = time.Now().Add(800 * time.Millisecond)
+	// View flash removed — it caused a jarring full-area replacement.
 	m.loadView(vw)
 }
 
@@ -658,9 +664,7 @@ func (m *DashboardModel) nextView() tea.Cmd {
 		return nil
 	}
 	m.activateView((pg.ActiveViewIdx + 1) % len(pg.Views))
-	return tea.Tick(800*time.Millisecond, func(_ time.Time) tea.Msg {
-		return ViewFlashMsg{}
-	})
+	return nil
 }
 
 func (m *DashboardModel) prevView() tea.Cmd {
@@ -669,9 +673,7 @@ func (m *DashboardModel) prevView() tea.Cmd {
 		return nil
 	}
 	m.activateView((pg.ActiveViewIdx - 1 + len(pg.Views)) % len(pg.Views))
-	return tea.Tick(800*time.Millisecond, func(_ time.Time) tea.Msg {
-		return ViewFlashMsg{}
-	})
+	return nil
 }
 
 func (m *DashboardModel) currentViewTitle() string {
@@ -710,6 +712,7 @@ func (m *DashboardModel) viewContext() ViewContext {
 		SearchTerm:    m.searchTerm,
 		SelectedApp:   m.selectedApp,
 		UseLogTime:    m.useLogTime,
+		SpinnerFrame:  m.spinnerFrame,
 	}
 }
 
@@ -735,8 +738,8 @@ func (p *DashboardView) Update(msg tea.Msg) (tea.Cmd, *ViewNav) {
 }
 
 func (p *DashboardView) View(width, height int) string {
-	p.Model.width = width
-	p.Model.height = height
+	// Width/height are already set via WindowSizeMsg in Update().
+	// Do NOT mutate model state in View — it must be a pure function.
 	return p.Model.View()
 }
 

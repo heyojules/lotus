@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tinytelemetry/lotus/internal/model"
+	"github.com/tinytelemetry/tiny-telemetry/internal/model"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -85,7 +85,7 @@ func (p *SeverityDeck) Render(ctx ViewContext, width, height int, active bool, _
 	if len(p.data) > 0 {
 		content = p.renderChart(width, contentLines)
 	} else if ctx.DeckLoading {
-		content = renderLoadingPlaceholder(width-2, contentLines)
+		content = renderLoadingPlaceholder(width-2, contentLines, ctx.SpinnerFrame)
 	} else {
 		content = helpStyle.Render("No data available")
 	}

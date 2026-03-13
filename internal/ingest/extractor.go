@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tinytelemetry/lotus/internal/logparse"
-	"github.com/tinytelemetry/lotus/internal/model"
+	"github.com/tinytelemetry/tiny-telemetry/internal/logparse"
+	"github.com/tinytelemetry/tiny-telemetry/internal/model"
 )
 
 // ParseJSONLogEntries parses one JSON line into one or more LogRecords.
@@ -112,8 +112,8 @@ func parseOTELScopeLogs(value interface{}, inherited map[string]string, line str
 			continue
 		}
 
-		scopeAttrs := cloneAttributes(inherited)
-		mergeAttributes(scopeAttrs, parseOTELAttributes(scopeLog["attributes"]))
+		scopeAttrs := CloneAttributes(inherited)
+		MergeAttributes(scopeAttrs, parseOTELAttributes(scopeLog["attributes"]))
 
 		// OTEL 1.0+ naming.
 		if scope, ok := scopeLog["scope"].(map[string]interface{}); ok {
@@ -123,7 +123,7 @@ func parseOTELScopeLogs(value interface{}, inherited map[string]string, line str
 			if version := ExtractStringField(scope, "version"); version != "" {
 				scopeAttrs["otel.scope.version"] = version
 			}
-			mergeAttributes(scopeAttrs, parseOTELAttributes(scope["attributes"]))
+			MergeAttributes(scopeAttrs, parseOTELAttributes(scope["attributes"]))
 		}
 
 		// Legacy naming.
@@ -164,8 +164,8 @@ func parseOTELLogRecords(value interface{}, inherited map[string]string, line st
 
 func parseOTELLogRecord(raw map[string]interface{}, inherited map[string]string, line string) *model.LogRecord {
 	receiveTime := time.Now()
-	attributes := cloneAttributes(inherited)
-	mergeAttributes(attributes, parseOTELAttributes(raw["attributes"]))
+	attributes := CloneAttributes(inherited)
+	MergeAttributes(attributes, parseOTELAttributes(raw["attributes"]))
 
 	if traceID := ExtractStringField(raw, "traceId"); traceID != "" {
 		attributes["trace.id"] = traceID
@@ -189,24 +189,24 @@ func parseOTELLogRecord(raw map[string]interface{}, inherited map[string]string,
 	if message == "" {
 		message = rawLine
 	}
-	message = sanitizeLogMessage(message)
+	message = SanitizeMessage(message)
 
 	severityNumber := parseOTELSeverityNumber(raw["severityNumber"])
 	severity := ExtractStringField(raw, "severityText")
 	if severity == "" && severityNumber > 0 {
-		severity = severityFromOTELNumber(severityNumber)
+		severity = SeverityFromNumber(severityNumber)
 	}
 	if severity == "" {
 		severity = "INFO"
 	}
 	normalizedSeverity := logparse.NormalizeSeverity(severity)
 	if severityNumber == 0 {
-		severityNumber = defaultOTELSeverityNumber(normalizedSeverity)
+		severityNumber = DefaultSeverityNumber(normalizedSeverity)
 	}
 
 	origTimestamp := extractOTELTimestamp(raw)
 
-	app := extractAppFromOTELAttributes(attributes)
+	app := ExtractApp(attributes)
 	if app == "" {
 		app = "default"
 	}
@@ -360,44 +360,6 @@ func parseOTELSeverityNumber(value interface{}) int {
 	}
 }
 
-func severityFromOTELNumber(number int) string {
-	switch {
-	case number >= 1 && number <= 4:
-		return "TRACE"
-	case number >= 5 && number <= 8:
-		return "DEBUG"
-	case number >= 9 && number <= 12:
-		return "INFO"
-	case number >= 13 && number <= 16:
-		return "WARN"
-	case number >= 17 && number <= 20:
-		return "ERROR"
-	case number >= 21 && number <= 24:
-		return "FATAL"
-	default:
-		return ""
-	}
-}
-
-func defaultOTELSeverityNumber(level string) int {
-	switch logparse.NormalizeSeverity(level) {
-	case "TRACE":
-		return 1
-	case "DEBUG":
-		return 5
-	case "INFO":
-		return 9
-	case "WARN":
-		return 13
-	case "ERROR":
-		return 17
-	case "FATAL":
-		return 21
-	default:
-		return 9
-	}
-}
-
 func isOTELLogRecord(raw map[string]interface{}) bool {
 	for _, key := range []string{
 		"timeUnixNano",
@@ -417,32 +379,6 @@ func isOTELLogRecord(raw map[string]interface{}) bool {
 	_, hasBody := raw["body"]
 	_, hasAttrs := raw["attributes"]
 	return hasBody && hasAttrs
-}
-
-func extractAppFromOTELAttributes(attributes map[string]string) string {
-	for _, key := range []string{"app", "service.name", "service_name", "service", "name"} {
-		if value := attributes[key]; value != "" {
-			return value
-		}
-	}
-	return ""
-}
-
-func cloneAttributes(attributes map[string]string) map[string]string {
-	if len(attributes) == 0 {
-		return map[string]string{}
-	}
-	out := make(map[string]string, len(attributes))
-	for k, v := range attributes {
-		out[k] = v
-	}
-	return out
-}
-
-func mergeAttributes(dst, src map[string]string) {
-	for k, v := range src {
-		dst[k] = v
-	}
 }
 
 func stringifyJSONValue(value interface{}) string {
@@ -469,13 +405,6 @@ func stringifyJSONValue(value interface{}) string {
 	return ""
 }
 
-func sanitizeLogMessage(message string) string {
-	clean := strings.ReplaceAll(message, "\t", " ")
-	clean = strings.ReplaceAll(clean, "\n", " ")
-	clean = strings.ReplaceAll(clean, "\r", " ")
-	return clean
-}
-
 // ExtractStringField returns the first non-empty string value found among the given keys.
 func ExtractStringField(raw map[string]interface{}, keys ...string) string {
 	for _, k := range keys {
@@ -488,22 +417,3 @@ func ExtractStringField(raw map[string]interface{}, keys ...string) string {
 	return ""
 }
 
-// ExtractService extracts the service name from log attributes.
-func ExtractService(attributes map[string]string) string {
-	if s := attributes["service.name"]; s != "" {
-		return s
-	}
-	if s := attributes["service"]; s != "" {
-		return s
-	}
-	if s := attributes["serviceName"]; s != "" {
-		return s
-	}
-	if s := attributes["app"]; s != "" {
-		return s
-	}
-	if s := attributes["name"]; s != "" {
-		return s
-	}
-	return "unknown"
-}

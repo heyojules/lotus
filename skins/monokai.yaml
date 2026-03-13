@@ -1,6 +1,6 @@
 name: monokai
 description: Monokai theme - A warm, high-contrast dark theme
-author: Lotus Community
+author: Tiny Telemetry Community
 colors:
   # UI Component Colors
   primary: "#66d9ef"           # Light blue primary

@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tinytelemetry/lotus/internal/model"
-	"github.com/tinytelemetry/lotus/internal/socketrpc"
+	"github.com/tinytelemetry/tiny-telemetry/internal/model"
+	"github.com/tinytelemetry/tiny-telemetry/internal/socketrpc"
 )
 
 // mockQuerier is a minimal LogQuerier for roundtrip testing.

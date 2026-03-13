@@ -9,8 +9,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/tinytelemetry/lotus/internal/journal"
-	"github.com/tinytelemetry/lotus/internal/model"
+	"github.com/tinytelemetry/tiny-telemetry/internal/journal"
+	"github.com/tinytelemetry/tiny-telemetry/internal/model"
 )
 
 // DefaultFlushQueueSize is the number of batches that can be queued for async flushing.

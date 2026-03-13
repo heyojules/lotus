@@ -26,7 +26,7 @@ func (f *fakeSnapshotter) SnapshotTo(dstPath string) error {
 func TestNewManager_Disabled(t *testing.T) {
 	t.Parallel()
 
-	m, err := NewManager(&fakeSnapshotter{dbPath: "/tmp/lotus.duckdb", data: []byte("x")}, Config{})
+	m, err := NewManager(&fakeSnapshotter{dbPath: "/tmp/tiny-telemetry.duckdb", data: []byte("x")}, Config{})
 	if err != nil {
 		t.Fatalf("NewManager error: %v", err)
 	}
@@ -52,7 +52,7 @@ func TestRunOnce_CreatesAndPrunesLocalBackups(t *testing.T) {
 
 	localDir := t.TempDir()
 	store := &fakeSnapshotter{
-		dbPath: "/tmp/lotus.duckdb",
+		dbPath: "/tmp/tiny-telemetry.duckdb",
 		data:   []byte("snapshot"),
 	}
 
@@ -75,7 +75,7 @@ func TestRunOnce_CreatesAndPrunesLocalBackups(t *testing.T) {
 		t.Fatalf("RunOnce #3: %v", err)
 	}
 
-	files, err := filepath.Glob(filepath.Join(localDir, "lotus-*.duckdb"))
+	files, err := filepath.Glob(filepath.Join(localDir, "tiny-telemetry-*.duckdb"))
 	if err != nil {
 		t.Fatalf("glob backups: %v", err)
 	}
@@ -102,7 +102,7 @@ func TestStop_CancelsInFlightUpload(t *testing.T) {
 	uploader := &blockingUploader{started: make(chan struct{})}
 	m := &Manager{
 		store: &fakeSnapshotter{
-			dbPath: "/tmp/lotus.duckdb",
+			dbPath: "/tmp/tiny-telemetry.duckdb",
 			data:   []byte("snapshot"),
 		},
 		cfg: Config{

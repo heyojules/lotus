@@ -68,8 +68,8 @@ var CurrentSkin *Skin
 func DefaultSkin() *Skin {
 	return &Skin{
 		Name:        "default",
-		Description: "Default Lotus color scheme - Dark theme",
-		Author:      "Lotus",
+		Description: "Default Tiny Telemetry color scheme - Dark theme",
+		Author:      "Tiny Telemetry",
 		Colors: SkinColors{
 			// UI Component Colors
 			Primary:       "#0f93fc", // Blue

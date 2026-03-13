@@ -6,8 +6,8 @@ Accept log lines from external inputs and expose them as a unified stream.
 
 ## Owned Components
 
-- `cmd/lotus/input_plugins.go`
-- `cmd/lotus/source_mux.go`
+- `cmd/tiny-telemetry/input_plugins.go`
+- `cmd/tiny-telemetry/source_mux.go`
 - `internal/logsource/logsource.go`
 - `internal/logsource/stdin.go`
 - `internal/logsource/tcp.go`
@@ -40,12 +40,12 @@ Enabled plugins are built and then merged through `SourceMultiplexer` into one b
 Operational default:
 
 - TCP ingest listens on `127.0.0.1:4000` by default (`host: 127.0.0.1`, `tcp-port: 4000`).
-- `stdin` ingest activates automatically when Lotus receives piped input.
+- `stdin` ingest activates automatically when Tiny Telemetry receives piped input.
 - For remote-machine senders, bind TCP to a reachable address using `host` (or `tcp-addr`), for example `0.0.0.0:4000`.
 
 Production durability note:
 
-- Prefer `journald -> rsyslog (disk queue) -> lotus tcp:4000` over direct `app | lotus`.
+- Prefer `journald -> rsyslog (disk queue) -> tiny-telemetry tcp:4000` over direct `app | tiny-telemetry`.
 - See `docs/operations/rsyslog-forwarder.md` for the reference setup.
 
 ## Why It Is Decoupled

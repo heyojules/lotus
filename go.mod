@@ -1,4 +1,4 @@
-module github.com/tinytelemetry/lotus
+module github.com/tinytelemetry/tiny-telemetry
 
 go 1.25.0
 
